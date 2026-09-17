@@ -1,0 +1,14 @@
+# Dependencias: se reinstalan con `npm install`, nunca se versionan.
+node_modules/
+
+# Artefactos locales del sistema y del editor.
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# Variables de entorno locales.
+.env
+.env.local
+
+# OJO: dist/ SÍ se versiona a propósito — es lo que Plesk sirve.
