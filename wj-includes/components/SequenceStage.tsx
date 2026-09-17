@@ -1,4 +1,4 @@
-import { useEffect, useRef, type Ref } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type Ref } from "react";
 import {
   motion,
   useMotionValueEvent,
@@ -8,6 +8,7 @@ import {
   useTransform,
 } from "motion/react";
 import ChapterOverlay from "./ChapterOverlay";
+const WebGLStage = lazy(() => import("./WebGLStage"));
 import { useVideoScrub } from "../hooks/useVideoScrub";
 import { VIDEO_SECUENCIA_URL } from "../../wj-content/wj-enlaces";
 import { CHAPTERS } from "../../wj-content/wj-capitulos";
@@ -21,6 +22,9 @@ interface SequenceStageProps {
   onHoverCta: () => void;
 }
 
+/** Duración del clip de secuencia: cinco tramos de cuatro segundos. */
+const DURACION_SECUENCIA = 20.04;
+
 export default function SequenceStage({
   ref,
   ambientGlowColor,
@@ -32,7 +36,20 @@ export default function SequenceStage({
   const localRef = useRef<HTMLElement | null>(null);
   const prefersReducedMotion = useReducedMotion();
   const lastChapterRef = useRef(-1);
-  const { videoRef, videoDuration, seekToProgress, videoHandlers } = useVideoScrub(20.0);
+  const { videoRef, videoDuration, seekToProgress, videoHandlers } =
+    useVideoScrub(DURACION_SECUENCIA);
+
+  // El nodo del vídeo viaja a three.js como textura; en estado, no sólo en ref.
+  const [videoNode, setVideoNode] = useState<HTMLVideoElement | null>(null);
+  const [webglActive, setWebglActive] = useState(false);
+
+  const attachVideo = useCallback(
+    (node: HTMLVideoElement | null) => {
+      videoRef.current = node;
+      setVideoNode(node);
+    },
+    [videoRef],
+  );
 
   const setRefs = (node: HTMLElement | null) => {
     localRef.current = node;
@@ -88,7 +105,8 @@ export default function SequenceStage({
             className="absolute inset-0"
             style={{ background: "radial-gradient(ellipse at center, #000a22 0%, #00133d 65%)" }}
           />
-          {!prefersReducedMotion && (
+          {/* Con la escena activa el halo lo pinta el aura del shader. */}
+          {!prefersReducedMotion && !webglActive && (
             <motion.div
               className="absolute left-[10%] bottom-[10%] rounded-full filter blur-[110px]"
               style={{
@@ -103,18 +121,38 @@ export default function SequenceStage({
           )}
         </div>
 
+        {/* Fuente de la textura: con WebGL activo sigue decodificando, invisible. */}
         <motion.video
-          ref={videoRef}
+          ref={attachVideo}
           muted
           playsInline
           preload="auto"
           aria-hidden="true"
-          style={{ opacity: prefersReducedMotion ? 0.95 : videoOpacity }}
-          className="absolute inset-0 w-full h-full object-cover mix-blend-screen z-10"
+          style={{
+            opacity: webglActive ? 0 : prefersReducedMotion ? 0.95 : videoOpacity,
+          }}
+          className={`absolute inset-0 w-full h-full object-cover z-10 ${
+            webglActive ? "pointer-events-none" : "mix-blend-screen"
+          }`}
           {...videoHandlers}
         >
           <source src={VIDEO_SECUENCIA_URL} type="video/mp4" />
         </motion.video>
+
+        {/* Escena three.js del recorrido: el campo avanza con el scroll. */}
+        <Suspense fallback={null}>
+          <WebGLStage
+            video={videoNode}
+            variant="sequence"
+            progress={smoothProgress}
+            opacity={videoOpacity}
+            glowColor={ambientGlowColor}
+            glowIntensity={glowIntensity}
+            glowSize={glowSize}
+            onActiveChange={setWebglActive}
+            className="absolute inset-0 z-10 pointer-events-none"
+          />
+        </Suspense>
 
         {/* Viñeta lateral para contraste de lectura */}
         <div className="absolute inset-0 z-[15] pointer-events-none bg-gradient-to-r from-abyss/85 via-transparent to-abyss/85" />

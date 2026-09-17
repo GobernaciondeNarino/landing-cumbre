@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   motion,
   useMotionValueEvent,
@@ -9,6 +9,9 @@ import {
 import HeroTitle from "./HeroTitle";
 import LeftInfoBlock from "./LeftInfoBlock";
 import RightInfoBlock from "./RightInfoBlock";
+// La escena arrastra three.js: se carga aparte para no retrasar el primer
+// pintado. Hasta que llega, el escenario pinta el <video> del DOM.
+const WebGLStage = lazy(() => import("./WebGLStage"));
 import { useVideoScrub } from "../hooks/useVideoScrub";
 import { VIDEO_PRINCIPAL_URL } from "../../wj-content/wj-enlaces";
 
@@ -18,6 +21,9 @@ interface HeroStageProps {
   glowIntensity: number;
 }
 
+/** Duración del clip del personaje principal, por si los metadatos tardan. */
+const DURACION_PRINCIPAL = 5.04;
+
 export default function HeroStage({
   ambientGlowColor,
   glowSize,
@@ -25,7 +31,21 @@ export default function HeroStage({
 }: HeroStageProps) {
   const heroRef = useRef<HTMLElement | null>(null);
   const prefersReducedMotion = useReducedMotion();
-  const { videoRef, videoDuration, seekToProgress, videoHandlers } = useVideoScrub(4.0);
+  const { videoRef, videoDuration, seekToProgress, videoHandlers } =
+    useVideoScrub(DURACION_PRINCIPAL);
+
+  // El <video> se entrega a three.js como textura; hace falta el nodo en estado,
+  // no sólo en la ref, para que la escena se entere de cuándo aparece.
+  const [videoNode, setVideoNode] = useState<HTMLVideoElement | null>(null);
+  const [webglActive, setWebglActive] = useState(false);
+
+  const attachVideo = useCallback(
+    (node: HTMLVideoElement | null) => {
+      videoRef.current = node;
+      setVideoNode(node);
+    },
+    [videoRef],
+  );
 
   const hasFinePointer = useMemo(
     () => typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches,
@@ -101,7 +121,9 @@ export default function HeroStage({
           style={{ background: "radial-gradient(ellipse at center, #000a22 0%, #00133d 65%)" }}
         />
         <div className="absolute inset-0 grid-bg opacity-60 mix-blend-overlay" />
-        {!prefersReducedMotion && (
+        {/* Los blur blobs sólo entran cuando no hay WebGL: con la escena activa
+            el halo lo pinta el aura del shader, que además sigue al puntero. */}
+        {!prefersReducedMotion && !webglActive && (
           <>
             <motion.div
               className="absolute left-0 top-[20%] rounded-full filter blur-[100px]"
@@ -136,18 +158,36 @@ export default function HeroStage({
         <HeroTitle />
       </div>
 
-      {/* z-10 · vídeo scrubbeado por ratón, centrado a ancho completo */}
+      {/* z-10 · vídeo scrubbeado por ratón, centrado a ancho completo.
+          Con WebGL activo sigue en el DOM y decodificando — es la fuente de la
+          textura — pero quien pinta es el lienzo de al lado. */}
       <video
-        ref={videoRef}
+        ref={attachVideo}
         muted
         playsInline
         preload="auto"
         aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover opacity-95 mix-blend-screen pointer-events-none z-10"
+        className={`absolute inset-0 w-full h-full object-cover pointer-events-none z-10 ${
+          webglActive ? "opacity-0" : "opacity-95 mix-blend-screen"
+        }`}
         {...videoHandlers}
       >
         <source src={VIDEO_PRINCIPAL_URL} type="video/mp4" />
       </video>
+
+      {/* z-10 · escena three.js: campo de partículas + personaje con shader */}
+      <Suspense fallback={null}>
+        <WebGLStage
+          video={videoNode}
+          variant="hero"
+          progress={scrollYProgress}
+          glowColor={ambientGlowColor}
+          glowIntensity={glowIntensity}
+          glowSize={glowSize}
+          onActiveChange={setWebglActive}
+          className="absolute inset-0 z-10 pointer-events-none"
+        />
+      </Suspense>
 
       {/* z-20 · contenido inferior */}
       <div className="relative z-20 mt-auto w-full">
