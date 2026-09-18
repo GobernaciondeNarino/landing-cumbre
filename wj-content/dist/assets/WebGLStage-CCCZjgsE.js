@@ -1,4 +1,4 @@
-var X=Object.defineProperty;var Y=(r,e,t)=>e in r?X(r,e,{enumerable:!0,configurable:!0,writable:!0,value:t}):r[e]=t;var i=(r,e,t)=>Y(r,typeof e!="symbol"?e+"":e,t);import{u as K,r as d,j as W}from"./index-C7ldtMjU.js";import{S as k,C as Q,V as y,W as Z,P as ee,a as te,M as re,b as ae,c as ie,d as oe,L as V,e as T,B as se,f as F,g as O,h as ne,A as q,O as S,i as le}from"./three-oNsKUHeZ.js";const G=`
+var X=Object.defineProperty;var Y=(r,e,t)=>e in r?X(r,e,{enumerable:!0,configurable:!0,writable:!0,value:t}):r[e]=t;var i=(r,e,t)=>Y(r,typeof e!="symbol"?e+"":e,t);import{u as K,r as d,j as W}from"./index-BRG4pslW.js";import{S as k,C as Q,V as y,W as Z,P as ee,a as te,M as re,b as ae,c as ie,d as oe,L as V,e as T,B as se,f as F,g as O,h as ne,A as q,O as S,i as le}from"./three-oNsKUHeZ.js";const G=`
   float wjLuma(vec3 c) {
     return dot(c, vec3(0.2126, 0.7152, 0.0722));
   }

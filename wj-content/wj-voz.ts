@@ -12,32 +12,32 @@
 // ============================================================================
 
 /**
- * ID del agente de ElevenLabs.
+ * Endpoint propio al que el sitio le pregunta cómo conectarse.
  *
- * NO es un secreto: identifica al agente, no autoriza nada por sí solo. Vale
- * para agentes **públicos**, que son los que aceptan conexiones del navegador
- * sin credenciales. Se copia del panel de ElevenLabs, en Agents → tu agente →
- * Agent ID, y el agente tiene que estar marcado como público.
+ * **Esto es lo único que hay que saber aquí.** La configuración del asistente
+ * —qué agente y, si hace falta, con qué clave— vive en el SERVIDOR, y el sitio
+ * se la pregunta a este endpoint cada vez que alguien pulsa el micrófono. Así,
+ * cambiar de agente o rotar la clave no obliga a recompilar ni a tocar el
+ * repositorio: se cambia en el servidor y ya.
  *
- * Mientras esté vacío, el botón del micrófono explica que el asistente de voz
- * todavía no está configurado y el chat escrito sigue funcionando.
+ * La implementación está en `wj-content/api/voz-token.php` y admite cuatro
+ * sitios donde poner esa configuración. Cuál usar, en `wj-admin/VOZ.md`.
+ *
+ * Vaciar esta constante apaga el asistente de voz; el chat escrito sigue.
  */
-export const AGENTE_VOZ_ID = "";
+export const ENDPOINT_TOKEN_VOZ = "/wj-content/api/voz-token.php";
 
 /**
- * Endpoint **propio** que entrega un token efímero para hablar con el agente.
+ * Atajo opcional: ID de un agente **público** compilado en la propia web.
  *
- * Es la alternativa para agentes **privados**: el navegador pide un token a
- * este endpoint, el endpoint lo pide a ElevenLabs con la clave —que sólo
- * existe en el servidor— y devuelve únicamente el token, que caduca.
+ * No es un secreto —identifica al agente, no autoriza nada—, así que puede ir
+ * aquí sin riesgo. Sirve para desplegar sin PHP, a cambio de tener que
+ * recompilar cada vez que cambie.
  *
- * En el repositorio hay una implementación lista para Plesk en
- * `wj-content/api/voz-token.php`; con ella, aquí se pone
- * `"/wj-content/api/voz-token.php"`.
- *
- * Si está relleno, manda sobre `AGENTE_VOZ_ID`.
+ * Si está relleno, manda sobre el endpoint y se evita el viaje al servidor.
+ * Lo normal es dejarlo vacío y configurar en el servidor.
  */
-export const ENDPOINT_TOKEN_VOZ = "";
+export const AGENTE_VOZ_ID = "";
 
 /** Textos del asistente. */
 export const VOZ = {

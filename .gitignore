@@ -7,11 +7,12 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Variables de entorno y secretos locales. La clave de ElevenLabs no vive aquí
-# sino en el servidor, fuera del document root — ver wj-admin/VOZ.md.
+# Variables de entorno y secretos locales. La configuración del asistente de voz
+# vive en el servidor, nunca en el repositorio — ver wj-admin/VOZ.md.
 .env
 .env.local
 *.ini
 elevenlabs.ini
+wj-content/api/config.php
 
 # OJO: dist/ SÍ se versiona a propósito — es lo que Plesk sirve.

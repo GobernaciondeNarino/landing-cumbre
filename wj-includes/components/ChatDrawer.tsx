@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { Mic, PhoneOff, Send, X } from "lucide-react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { VOZ } from "../../wj-content/wj-voz";
-import { construirSesion, hayAgenteConfigurado, pedirMicrofono } from "../voz/sesion";
+import { construirSesion, pedirMicrofono } from "../voz/sesion";
 
 interface Mensaje {
   id: number;
@@ -54,9 +54,10 @@ function Contenido({ onClose, iniciarVoz = false, onVozChange }: ChatDrawerProps
   const [borrador, setBorrador] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [arrancando, setArrancando] = useState(false);
-  const [aviso, setAviso] = useState<string | null>(
-    hayAgenteConfigurado() ? null : VOZ.sinConfigurar,
-  );
+  // Si el asistente de voz está listo sólo se sabe preguntándole al servidor,
+  // y eso no se hace hasta que alguien pulsa el micrófono: abrir el panel para
+  // escribir no tiene por qué saludar con un aviso de algo que no ha fallado.
+  const [aviso, setAviso] = useState<string | null>(null);
 
   const listaRef = useRef<HTMLDivElement | null>(null);
   const siguienteId = useRef(1);
@@ -94,10 +95,6 @@ function Contenido({ onClose, iniciarVoz = false, onVozChange }: ChatDrawerProps
   const conectando = conversacion.status === "connecting" || arrancando;
 
   const iniciarLlamada = useCallback(async () => {
-    if (!hayAgenteConfigurado()) {
-      setAviso(VOZ.sinConfigurar);
-      return;
-    }
     setArrancando(true);
     setAviso(null);
     try {
