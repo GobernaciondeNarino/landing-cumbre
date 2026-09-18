@@ -19,13 +19,21 @@ const itemVariants: Variants = {
   },
 };
 
+/**
+ * Titular del banner, alineado a la derecha y en cuerpo contenido.
+ *
+ * El personaje entra por el centro-izquierda del encuadre: con el titular a
+ * toda caja y a la izquierda, las letras le cruzaban la cara. Empujado al
+ * margen derecho y con la caja tipográfica más pequeña, la figura queda
+ * despejada y el título sigue leyéndose sobre el fondo.
+ */
 export default function HeroTitle() {
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="relative w-full max-w-7xl mx-auto px-6 md:px-12 select-none"
+      className="relative w-full max-w-7xl mx-auto px-6 md:px-12 select-none text-right"
     >
       <motion.p
         variants={itemVariants}
@@ -38,14 +46,16 @@ export default function HeroTitle() {
           <motion.span
             key={linea}
             variants={itemVariants}
-            className="block text-[13vw] md:text-[9.5vw] text-white"
+            className="block text-[10vw] md:text-[6.5vw] text-white"
           >
             {linea}
           </motion.span>
         ))}
+        {/* `inline-block` para que el degradado recorra las letras y no la caja
+            entera: alineado a la derecha, un `block` dejaría el ámbar fuera. */}
         <motion.span
           variants={itemVariants}
-          className="block text-[13vw] md:text-[9.5vw] bg-gradient-to-r from-amber to-ember bg-clip-text text-transparent pb-2"
+          className="inline-block text-[10vw] md:text-[6.5vw] bg-gradient-to-r from-amber to-ember bg-clip-text text-transparent pb-2"
         >
           {HERO.tituloAcento}
         </motion.span>

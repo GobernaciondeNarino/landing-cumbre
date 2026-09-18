@@ -77,6 +77,7 @@ export class CumbreScene {
 
   private videoTexture: VideoTexture | null = null;
   private video: HTMLVideoElement | null = null;
+  private hasFrame = false;
   private rvfcHandle: number | null = null;
 
   private readonly pointerTarget = new Vector2(0, 0);
@@ -254,8 +255,14 @@ export class CumbreScene {
     figure.uTime.value = this.clock;
     figure.uEnergy.value = this.energy;
     figure.uOpacity.value = this.opacity;
-    figure.uHasFrame.value =
-      this.video && this.video.readyState >= 2 && this.video.videoWidth > 0 ? 1 : 0;
+    // Durante un seek el navegador baja `readyState` a 1 hasta que entrega el
+    // fotograma nuevo. Apagar la figura en ese hueco la hacía parpadear en cada
+    // movimiento del cursor, que es justo cuando hay que verla: en cuanto ha
+    // subido un fotograma, la textura conserva el último y la figura se queda.
+    if (!this.hasFrame && this.video && this.video.readyState >= 2 && this.video.videoWidth > 0) {
+      this.hasFrame = true;
+    }
+    figure.uHasFrame.value = this.hasFrame ? 1 : 0;
     if (this.video && this.video.videoWidth > 0) {
       (figure.uMediaSize.value as Vector2).set(this.video.videoWidth, this.video.videoHeight);
     }
@@ -301,6 +308,7 @@ export class CumbreScene {
       this.video.cancelVideoFrameCallback(this.rvfcHandle);
     }
     this.rvfcHandle = null;
+    this.hasFrame = false;
     this.videoTexture?.dispose();
     this.videoTexture = null;
     this.figureMaterial.uniforms.uMap.value = null;
