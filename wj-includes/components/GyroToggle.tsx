@@ -30,7 +30,7 @@ export default function GyroToggle({ estado, onToggle }: GyroToggleProps) {
       aria-label={etiqueta}
       title={etiqueta}
       aria-pressed={activo}
-      className={`fixed bottom-6 left-20 z-40 size-11 rounded-full bg-abyss/80 backdrop-blur-md border transition-colors
+      className={`fixed bottom-6 left-[8.5rem] z-40 size-11 rounded-full bg-abyss/80 backdrop-blur-md border transition-colors
                   flex items-center justify-center
                   focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink
                   disabled:opacity-40 disabled:cursor-not-allowed ${

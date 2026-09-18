@@ -48,5 +48,8 @@ export const PIE = {
   columna1Lineas: ["Gobernación de Nariño", "Pasto · Nariño · Colombia"],
   columna2Titulo: "Contacto",
   columna3Titulo: "© 2026",
-  columna3Lineas: ["Secretaría TIC — Gobernación de Nariño", "Todos los derechos reservados"],
+  columna3Lineas: [
+    "Secretaría TIC, Innovación y Gobierno Abierto",
+    "Gobernación de Nariño — Todos los derechos reservados",
+  ],
 } as const;

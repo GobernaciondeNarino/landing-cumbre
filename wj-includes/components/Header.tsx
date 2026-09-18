@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "motion/
 import { Menu, MessageCircle, Sparkles, X } from "lucide-react";
 import { CHAPTERS } from "../../wj-content/wj-capitulos";
 import { CABECERA } from "../../wj-content/wj-textos";
+import { LOGO_RESPALDO_URL, LOGO_URL } from "../../wj-content/wj-enlaces";
 
 interface HeaderProps {
   activeSection: number;
@@ -44,14 +45,21 @@ export default function Header({
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            className="font-display font-black tracking-tighter text-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-ink"
+            className="flex items-center focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-ink"
           >
-            {CABECERA.marca}
-            <span className="text-ember-ink">·</span>
-            {CABECERA.marcaSufijo}
-            <span className="ml-2 font-mono text-[10px] font-normal tracking-[0.25em] text-ink/40 uppercase">
-              {CABECERA.marcaNota}
-            </span>
+            {/* El WebP pesa 39 kB; el PNG original queda de respaldo. Las
+                dimensiones intrínsecas evitan el salto de maquetación
+                mientras la imagen carga. */}
+            <picture>
+              <source srcSet={LOGO_URL} type="image/webp" />
+              <img
+                src={LOGO_RESPALDO_URL}
+                width={1792}
+                height={522}
+                alt={`${CABECERA.marca} ${CABECERA.marcaSufijo} ${CABECERA.marcaNota}`}
+                className="h-10 md:h-12 w-auto"
+              />
+            </picture>
           </a>
 
           <div className="hidden md:block">

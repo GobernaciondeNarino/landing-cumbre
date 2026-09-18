@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config wj-vite.config.ts",
-    "build": "tsc --noEmit && vite build --config wj-vite.config.ts",
+    "build": "tsc --noEmit && vite build --config wj-vite.config.ts && node wj-build-index.mjs",
     "preview": "vite preview --config wj-vite.config.ts"
   },
   "dependencies": {

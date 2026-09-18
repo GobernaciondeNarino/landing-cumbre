@@ -1,0 +1,110 @@
+# ============================================================================
+# Cumbre IA Nariño — reglas de Apache/Plesk
+#
+# El sitio se despliega tal cual: la raíz del repositorio es el document root.
+# El index.html de la raíz ya carga el sitio compilado desde wj-content/dist/,
+# así que aquí NO hay reescrituras — sólo lo que Apache no sabe por su cuenta:
+# qué servir por defecto, qué no servir nunca, y cuánto cachear cada cosa.
+#
+# Todas las reglas van dentro de <IfModule>: si al servidor le falta un módulo,
+# la regla se salta en vez de tumbar el sitio con un error 500.
+# ============================================================================
+
+DirectoryIndex index.html
+
+# ---------------------------------------------------------------------------
+# Nada de listados de directorio
+# ---------------------------------------------------------------------------
+Options -Indexes
+
+# ---------------------------------------------------------------------------
+# Código fuente fuera del alcance del público
+#
+# El repositorio se despliega entero, así que sin esto cualquiera podría
+# descargar los componentes sin compilar, la guía de administración o el
+# package.json. Nada de eso es secreto, pero tampoco tiene por qué servirse.
+# ---------------------------------------------------------------------------
+<IfModule mod_authz_core.c>
+  # Carpetas de código y de trabajo.
+  <FilesMatch "\.(ts|tsx|mjs|map|json|md|lock)$">
+    Require all denied
+  </FilesMatch>
+  # Archivos ocultos: .git, .env, .htaccess, cualquier .ini que caiga aquí.
+  <FilesMatch "^\.">
+    Require all denied
+  </FilesMatch>
+  <FilesMatch "\.(ini|env|log)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # El endpoint de voz es PHP y tiene que ejecutarse con normalidad.
+  RewriteRule ^wj-content/api/ - [L]
+
+  # Carpetas que no se sirven nunca, ni siquiera un archivo suelto de dentro.
+  RewriteRule ^(node_modules|wj-includes|wj-admin|\.claude|\.git)/ - [F,L]
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# Tipos MIME
+#
+# Plesk suele traerlos, pero un .webp o un .mp4 servido como octet-stream
+# rompe el logotipo y el scrub de vídeo, y cuesta de diagnosticar.
+# ---------------------------------------------------------------------------
+<IfModule mod_mime.c>
+  AddType video/mp4                  .mp4
+  AddType video/webm                 .webm
+  AddType image/webp                 .webp
+  AddType image/svg+xml              .svg
+  AddType text/javascript            .js
+  AddType text/css                   .css
+  AddType font/woff2                 .woff2
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# Caché
+#
+# Los archivos de wj-content/dist/assets/ llevan un hash en el nombre: cambian
+# de nombre cuando cambia su contenido, así que se pueden cachear para siempre.
+# El index.html no lleva hash y es quien apunta a los demás: si se cachea, un
+# despliegue nuevo no se ve.
+# ---------------------------------------------------------------------------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault                          "access plus 1 hour"
+  ExpiresByType text/html                 "access plus 0 seconds"
+  ExpiresByType video/mp4                 "access plus 7 days"
+  ExpiresByType image/webp                "access plus 30 days"
+  ExpiresByType image/png                 "access plus 30 days"
+  ExpiresByType image/svg+xml             "access plus 30 days"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  # Los assets con hash en el nombre no se revalidan nunca.
+  <FilesMatch "-[A-Za-z0-9_-]{8,}\.(js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  # Cabeceras de seguridad básicas.
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # El micrófono del asistente de voz necesita permiso explícito de la propia
+  # página; el resto de sensores se quedan cerrados.
+  Header always set Permissions-Policy "microphone=(self), camera=(), geolocation=()"
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# Compresión
+# ---------------------------------------------------------------------------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript
+  AddOutputFilterByType DEFLATE application/javascript application/json
+  AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>

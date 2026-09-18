@@ -19,22 +19,41 @@ sigue en el historial y se restaura con un `checkout`: ver **[`RESTAURAR.md`](RE
 ## Estructura
 
 ```
+index.html     LA PÁGINA. Generada por el build; carga el sitio entero.
+.htaccess      Reglas de Apache/Plesk: índice, protección del código, caché.
 wj-admin/      Guía de administración (dónde se cambia cada cosa) y VOZ.md.
-api/           Endpoint PHP del asistente de voz (sólo para agente privado).
-RESTAURAR.md   Cómo volver a la versión oscura.
-wj-content/    Contenido editable: wj-textos.ts, wj-capitulos.ts, wj-enlaces.ts
-               y uploads/ (vídeos, favicon).
+wj-content/    TODO lo servible y lo editable.
+  wj-textos.ts, wj-capitulos.ts, wj-enlaces.ts, wj-voz.ts
+  uploads/     Fuentes estáticas: vídeos, logo, favicon.
+  dist/        Sitio compilado y versionado — lo que el index.html carga.
+  api/         Endpoint PHP del asistente de voz (sólo para agente privado).
 wj-includes/   Código de la aplicación: componentes React, hooks y estilos.
+  index.html   Plantilla de Vite (NO es la página; ver más abajo).
   webgl/       Escena three.js: shaders GLSL, clase de escena y detección de WebGL.
 .claude/skills/ Skills de diseño para agentes (ver «Integraciones incluidas»).
-dist/          Sitio compilado y versionado — es lo que se sirve en Plesk.
-index.html     Punto de entrada (Vite y Apache exigen este nombre exacto).
-wj-vite.config.ts  Configuración de Vite (base relativa + publicDir en uploads).
-.htaccess      Reescribe todas las peticiones hacia dist/ bajo Apache/Plesk.
+RESTAURAR.md   Cómo volver a la versión oscura.
+wj-vite.config.ts   Configuración de Vite.
+wj-build-index.mjs  Genera el index.html de la raíz tras cada build.
 ```
 
-`package.json`, `tsconfig.json` e `index.html` conservan sus nombres porque npm,
-TypeScript, Vite y Apache los buscan exactamente así.
+`package.json`, `tsconfig.json`, `index.html` y `.htaccess` conservan sus nombres
+porque npm, TypeScript, Vite y Apache los buscan exactamente así.
+
+### Los dos index.html
+
+No son lo mismo y conviene no confundirlos:
+
+- **`wj-includes/index.html`** es la plantilla de Vite. Carga `main.tsx` sin
+  compilar, así que sólo sirve en `npm run dev`. Aquí se editan el `<title>`,
+  la descripción y el favicon.
+- **`index.html` de la raíz** es la página de producción. La escribe
+  `wj-build-index.mjs` al terminar el build, copiando el HTML compilado y
+  apuntando sus recursos a `wj-content/dist/`. **No se edita a mano.**
+
+Antes, el de la raíz era la plantilla: quien desplegaba el repositorio y abría
+`/` se encontraba una página en blanco, porque el sitio estaba en `dist/` y
+nada llevaba hasta allí. Ahora la raíz carga el sitio completo — escena WebGL,
+vídeos, asistente — sin depender de ninguna reescritura del servidor.
 
 ## Stack
 
@@ -122,7 +141,7 @@ se sirve al público. Hay dos montajes correctos y
 | | Qué se configura | Dónde vive el secreto |
 | --- | --- | --- |
 | **Agente público** (recomendado) | `AGENTE_VOZ_ID` en `wj-content/wj-voz.ts` | No hay secreto: el ID no autoriza nada |
-| **Agente privado** | `ENDPOINT_TOKEN_VOZ` apuntando a `api/voz-token.php` | En el servidor, fuera del document root |
+| **Agente privado** | `ENDPOINT_TOKEN_VOZ` apuntando a `wj-content/api/voz-token.php` | En el servidor, fuera del document root |
 
 Mientras las dos estén vacías el micrófono avisa de que la voz no está
 configurada y el chat escrito sigue respondiendo.
@@ -146,37 +165,33 @@ npm run preview   # sirve dist/
 
 ## Despliegue en Plesk
 
-Este es un proyecto Vite: **nunca sirvas el código fuente**. Lo que se publica es la
-carpeta **`dist/`**, compilada y versionada en este repositorio con rutas relativas
-(funciona en `httpdocs` o en cualquier subcarpeta).
+Este es un proyecto Vite: **nunca sirvas el código fuente**. Lo que se publica es el
+repositorio con su `dist/` ya compilado; no hace falta Node.js en el servidor.
 
-Opción A — Desplegar el repo completo (la más simple):
+**Despliegue: copiar el repositorio y ya.**
 
-1. Despliega el repositorio entero (Git de Plesk, FTP o File Manager) a `httpdocs`
-   **o a cualquier subcarpeta** (p. ej. `httpdocs/cumbre`).
-2. Nada más: el `.htaccess` de la raíz reescribe todas las peticiones hacia `dist/`,
-   así que `https://tudominio/` o `https://tudominio/cumbre/` sirven el build
-   directamente. No se necesita Node.js en el servidor ni cambiar el document root.
+1. Lleva el repositorio entero a `httpdocs` — Git de Plesk, FTP o File Manager — **o
+   a cualquier subcarpeta** (p. ej. `httpdocs/cumbre`).
+2. Nada más. El `index.html` de la raíz carga el sitio desde `wj-content/dist/` con
+   rutas relativas, así que funciona igual en la raíz del dominio que en una
+   subcarpeta, y sin reescrituras.
 
-Opción B — Document root a `dist`:
+El `.htaccess` que acompaña al repositorio no reescribe nada: se limita a fijar el
+índice, negar el acceso al código fuente (`wj-includes/`, `wj-admin/`, `.claude/`,
+`node_modules/`, los `.ts`, el `package.json`), declarar los MIME de vídeo y WebP,
+y separar la caché — eterna para los `assets/` con hash, nula para el HTML.
 
-1. Despliega el repo y en **Hosting Settings → Document root** apunta a la carpeta
-   `dist` del despliegue (p. ej. `httpdocs/dist`).
-
-Opción C — Subida manual solo del build:
-
-1. En tu máquina: `npm install && npm run build`.
-2. Sube **el contenido de `dist/`** a `httpdocs` (o a la subcarpeta que quieras) con el
-   File Manager o FTP.
+Si prefieres apuntar el **document root** directamente a `wj-content/dist`, también
+funciona: ese `index.html` es autónomo. Pierdes el endpoint de voz, que queda fuera.
 
 Notas:
 
-- No hay rutas de SPA: es una sola página, no se necesitan reglas de rewrite
-  adicionales.
+- No hay rutas de SPA: es una sola página, no se necesitan reglas de rewrite.
 - Los MP4 llevan `faststart`; Apache/nginx de Plesk sirven `Range` por defecto, que es
   lo único que el scrub de vídeo necesita.
-- Tras cambiar código o contenido, ejecuta `npm run build` y confirma el nuevo `dist/`
-  antes de desplegar. Si el cambio no se ve en producción, purga la caché de Cloudflare.
+- Tras cambiar código o contenido, ejecuta `npm run build` y confirma el nuevo
+  `wj-content/dist/` **y el `index.html` de la raíz** antes de desplegar. Si el cambio
+  no se ve en producción, purga la caché de Cloudflare.
 
 ## Integraciones incluidas
 
@@ -184,6 +199,12 @@ Notas:
   (dickwu): revisor de diseño con las 122 páginas de las *Human Interface Guidelines* de
   Apple. Claude Code la carga sola al pedir una revisión de interfaz, o a mano con
   `/apple-design`. Para actualizarla: `npx skills update apple-design`.
+
+## Logotipo
+
+`wj-content/uploads/logohz.png` es el maestro tal y como se subió (1792×522, 310 kB).
+La cabecera y el pie cargan `logohz.webp`, la misma imagen a 720 px y 39 kB, con el PNG
+como respaldo dentro de un `<picture>` para navegadores que no lean WebP.
 
 ## Vídeos
 

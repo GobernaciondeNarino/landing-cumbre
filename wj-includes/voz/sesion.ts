@@ -12,7 +12,7 @@ import { AGENTE_VOZ_ID, ENDPOINT_TOKEN_VOZ } from "../../wj-content/wj-voz";
  *
  *  · **Agente privado** — el navegador pide un token a un endpoint nuestro; el
  *    endpoint lo pide a ElevenLabs con la clave, que sólo existe allí, y
- *    devuelve un token efímero. Ver `api/voz-token.php`.
+ *    devuelve un token efímero. Ver `wj-content/api/voz-token.php`.
  */
 export async function construirSesion(): Promise<SessionConfig | null> {
   if (ENDPOINT_TOKEN_VOZ) {

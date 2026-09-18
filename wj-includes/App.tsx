@@ -7,6 +7,7 @@ import InscriptionSection from "./components/InscriptionSection";
 import Footer from "./components/Footer";
 import AmbientGlowStudio from "./components/AmbientGlowStudio";
 import MicToggle from "./components/MicToggle";
+import SoundToggle from "./components/SoundToggle";
 import ScrollProgressRail from "./components/ScrollProgressRail";
 import ProjectModal from "./components/ProjectModal";
 import { useAudioClick } from "./hooks/useAudioClick";
@@ -29,24 +30,28 @@ function Page() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [vozPedida, setVozPedida] = useState(false);
   const [vozActiva, setVozActiva] = useState(false);
+  const [isSoundOn, setIsSoundOn] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
 
   const sequenceRef = useRef<HTMLElement | null>(null);
   const { setEnabled, playClick } = useAudioClick();
 
-  /**
-   * Abrir el asistente es el gesto con el que el visitante pide audio, así que
-   * es también el momento de encender los sonidos de la interfaz: el
-   * AudioContext necesita un gesto y no tiene sentido pedir dos.
-   */
+  const handleSoundToggle = useCallback(
+    (on: boolean) => {
+      setIsSoundOn(on);
+      setEnabled(on);
+      if (on) playClick(660);
+    },
+    [setEnabled, playClick],
+  );
+
   const abrirAsistente = useCallback(
     (conVoz: boolean) => {
-      setEnabled(true);
       setVozPedida(conVoz);
       setIsChatOpen(true);
       playClick(660);
     },
-    [setEnabled, playClick],
+    [playClick],
   );
 
   const cerrarAsistente = useCallback(() => {
@@ -110,6 +115,7 @@ function Page() {
         onSizeChange={setGlowSize}
         onIntensityChange={setGlowIntensity}
       />
+      <SoundToggle isSoundOn={isSoundOn} onToggle={handleSoundToggle} />
       <MicToggle activa={vozActiva} onOpen={() => abrirAsistente(true)} />
 
       <AnimatePresence>

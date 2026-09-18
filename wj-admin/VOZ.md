@@ -57,7 +57,7 @@ Si el agente tiene que ser privado, el navegador no puede conectarse solo:
 necesita un **token efímero** que sólo se consigue con la clave. Ese
 intercambio ocurre en el servidor.
 
-En el repositorio está el endpoint listo: **`api/voz-token.php`**.
+En el repositorio está el endpoint listo: **`wj-content/api/voz-token.php`**.
 
 ### 1. Dónde va la clave
 
@@ -73,6 +73,9 @@ equivocándose:
 ```
 /var/www/vhosts/tudominio.gov.co/private/elevenlabs.ini
 ```
+
+(El endpoint la busca tres niveles por encima de sí mismo, que es justo ahí
+cuando el repositorio está desplegado en `httpdocs`.)
 
 Contenido del archivo:
 
@@ -100,35 +103,28 @@ env[ELEVENLABS_AGENT_ID] = agent_xxxxxxxxxxxxxxxxxxxxxxxxx
 
 El endpoint mira primero las variables de entorno y después el `.ini`.
 
-### 2. Dejar pasar `/api/` en el `.htaccess`
-
-La raíz reescribe todas las peticiones hacia `dist/`. El endpoint tiene que
-quedar fuera de esa reescritura, **antes** de la regla general:
-
-```apache
-RewriteEngine On
-RewriteRule ^api/ - [L]
-# … a partir de aquí, la reescritura hacia dist/ que ya existe
-```
-
-### 3. Apuntar la web al endpoint
+### 2. Apuntar la web al endpoint
 
 En `wj-content/wj-voz.ts`:
 
 ```ts
-export const ENDPOINT_TOKEN_VOZ = "/api/voz-token.php";
+export const ENDPOINT_TOKEN_VOZ = "/wj-content/api/voz-token.php";
 ```
 
-### 4. Revisar los dominios permitidos
+El `.htaccess` del repositorio ya deja pasar `/wj-content/api/` para que el PHP
+se ejecute con normalidad; no hay nada que añadir.
 
-En `api/voz-token.php`, arriba del todo, `ORIGENES_PERMITIDOS` tiene que
+### 3. Revisar los dominios permitidos
+
+En `wj-content/api/voz-token.php`, arriba del todo, `ORIGENES_PERMITIDOS` tiene que
 contener el dominio real desde el que se sirve la landing. Sin eso, cualquiera
 que descubra la URL del endpoint puede pedir tokens y gastar la cuota.
 
-### 5. Comprobar
+### 4. Comprobar
 
 ```bash
-curl -H "Referer: https://tic.narino.gov.co/" https://tudominio.gov.co/api/voz-token.php
+curl -H "Referer: https://tic.narino.gov.co/" \
+  https://tudominio.gov.co/wj-content/api/voz-token.php
 ```
 
 Debe devolver `{"token":"..."}`. Si devuelve un error, el detalle queda en el

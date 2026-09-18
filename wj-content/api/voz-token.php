@@ -38,11 +38,12 @@ const ORIGENES_PERMITIDOS = [
 
 /**
  * Archivo de configuración, FUERA del document root.
- * En Plesk, si el sitio está en /var/www/vhosts/tudominio/httpdocs, este
- * archivo va en /var/www/vhosts/tudominio/private/elevenlabs.ini — un nivel por
- * encima, donde Apache no lo sirve ni por accidente.
+ * Con el sitio en /var/www/vhosts/tudominio/httpdocs, este archivo va en
+ * /var/www/vhosts/tudominio/private/elevenlabs.ini — fuera de lo que Apache
+ * sirve, así que no se puede descargar ni por accidente. Desde aquí
+ * (httpdocs/wj-content/api/) son tres niveles hacia arriba.
  */
-const ARCHIVO_CONFIG = __DIR__ . '/../../private/elevenlabs.ini';
+const ARCHIVO_CONFIG = __DIR__ . '/../../../private/elevenlabs.ini';
 
 /** 'webrtc' (recomendado, menos latencia) o 'websocket'. */
 const MODO = 'webrtc';
