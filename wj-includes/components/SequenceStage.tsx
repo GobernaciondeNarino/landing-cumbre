@@ -101,10 +101,7 @@ export default function SequenceStage({
       <div className="sticky top-0 h-screen overflow-hidden">
         {/* Capa ambiente bajo el vídeo */}
         <div className="absolute inset-0 pointer-events-none z-0">
-          <div
-            className="absolute inset-0"
-            style={{ background: "radial-gradient(ellipse at center, #000a22 0%, #00133d 65%)" }}
-          />
+          <div className="absolute inset-0 stage-bg" />
           {/* Con la escena activa el halo lo pinta el aura del shader. */}
           {!prefersReducedMotion && !webglActive && (
             <motion.div
@@ -112,7 +109,7 @@ export default function SequenceStage({
               style={{
                 width: `${45 * glowIntensity}%`,
                 height: `${45 * glowIntensity}%`,
-                background: `radial-gradient(circle, ${ambientGlowColor} 0%, rgba(0,19,61,0) 70%)`,
+                background: `radial-gradient(circle, ${ambientGlowColor} 0%, rgba(255,255,255,0) 70%)`,
                 transform: `scale(${glowSize / 100})`,
               }}
               animate={{ scale: [1, 1.08, 1], opacity: [0.6, 0.75, 0.6] }}
@@ -154,8 +151,10 @@ export default function SequenceStage({
           />
         </Suspense>
 
-        {/* Viñeta lateral para contraste de lectura */}
-        <div className="absolute inset-0 z-[15] pointer-events-none bg-gradient-to-r from-abyss/85 via-transparent to-abyss/85" />
+        {/* Velos de lectura: a los lados, donde viven los capítulos, y en
+            vertical para fundir el plató con la página. */}
+        <div className="absolute inset-0 z-[15] pointer-events-none bg-gradient-to-r from-abyss/90 via-transparent to-abyss/90" />
+        <div className="absolute inset-0 z-[15] pointer-events-none stage-fade" />
 
         {CHAPTERS.map((chapter, i) => (
           <ChapterOverlay

@@ -37,7 +37,7 @@ export default function HeroTitle() {
     >
       <motion.p
         variants={itemVariants}
-        className="text-xs font-mono tracking-[0.25em] text-amber uppercase mb-2"
+        className="text-xs font-mono tracking-[0.25em] text-amber-ink uppercase mb-2"
       >
         {HERO.notaSuperior}
       </motion.p>
@@ -46,7 +46,7 @@ export default function HeroTitle() {
           <motion.span
             key={linea}
             variants={itemVariants}
-            className="block text-[10vw] md:text-[6.5vw] text-white"
+            className="block text-[10vw] md:text-[6.5vw] text-ink"
           >
             {linea}
           </motion.span>
@@ -55,7 +55,7 @@ export default function HeroTitle() {
             entera: alineado a la derecha, un `block` dejaría el ámbar fuera. */}
         <motion.span
           variants={itemVariants}
-          className="inline-block text-[10vw] md:text-[6.5vw] bg-gradient-to-r from-amber to-ember bg-clip-text text-transparent pb-2"
+          className="inline-block text-[10vw] md:text-[6.5vw] bg-gradient-to-r from-amber-ink to-ember-ink bg-clip-text text-transparent pb-2"
         >
           {HERO.tituloAcento}
         </motion.span>
