@@ -16,24 +16,31 @@ configuración del asistente: se la pregunta a `wj-content/api/voz-token.php`
 cada vez que alguien pulsa el micrófono. Cambiar de agente o rotar la clave **no
 obliga a recompilar ni a tocar el repositorio**.
 
-En Plesk, el sitio recomendado es este:
+El sitio recomendado es un archivo, `wj-content/api/config.php`:
 
-> **Websites & Domains → PHP Settings → Additional configuration directives**
+> 1. En el **File Manager** de Plesk, entra en `wj-content/api/`.
+> 2. Copia `config.example.php` y llama a la copia **`config.php`**.
+> 3. Rellena los dos valores y guarda:
 >
-> ```
-> env[ELEVENLABS_AGENT_ID] = agent_xxxxxxxxxxxxxxxxxxxxxxxxx
-> env[ELEVENLABS_API_KEY] = sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+> ```php
+> <?php
+> return [
+>     'ELEVENLABS_AGENT_ID' => 'agent_xxxxxxxxxxxxxxxxxxxxxxxxx',
+>     'ELEVENLABS_API_KEY'  => 'sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+> ];
 > ```
 >
-> Guardar y listo. No hay que subir ningún archivo ni recompilar.
+> Listo. No hay que recompilar, ni reiniciar nada, ni tocar la configuración
+> del servidor.
 
-Es el recomendado porque **no está en el repositorio** (así que la clave no
-puede acabar publicada en GitHub) y **sobrevive a los despliegues** (un `git
-pull` no lo toca).
+Es el recomendado porque **no está en el repositorio** (está en el
+`.gitignore`, así que la clave no puede acabar publicada en GitHub),
+**sobrevive a los despliegues** (un `git pull` no lo toca) y **no puede tumbar
+el sitio**: es un archivo de la aplicación, no configuración de PHP.
 
 ### Si el agente es público, no hace falta clave
 
-Deja sólo `ELEVENLABS_AGENT_ID` y borra la otra línea. El ID identifica al
+Deja sólo `ELEVENLABS_AGENT_ID` y la otra línea vacía. El ID identifica al
 agente pero no autoriza a gastar nada, así que no hay secreto que proteger.
 Es la opción más sencilla y la que menos puede salir mal.
 
@@ -43,18 +50,41 @@ permitidos, para que nadie lo incruste desde otro sitio.
 
 ---
 
+## ⚠ No uses `env[…]` en los ajustes de PHP de Plesk
+
+En este servidor (Plesk con CloudLinux alt-php) el campo **PHP Settings →
+Additional configuration directives** se valida como un archivo **php.ini**,
+donde la sintaxis `nombre[clave] = valor` no existe. Poner ahí
+
+```
+env[ELEVENLABS_AGENT_ID] = …
+```
+
+hace que PHP-FPM no arranque y **deja el PHP del dominio caído**, con este
+error:
+
+```
+PHP: syntax error, unexpected ']', expecting '=' in Unknown on line 1
+ERROR: Unable to include /opt/alt/php85/etc/php-fpm.d/tic.narino.gov.co.conf
+ERROR: FPM initialization failed
+```
+
+**Si te ha pasado:** vuelve a *PHP Settings*, **borra esas dos líneas**, pulsa
+*OK/Apply* y PHP-FPM arranca otra vez. Después configura el asistente con
+`config.php`, como arriba.
+
 ## Las cuatro formas de configurarlo
 
 El endpoint busca `ELEVENLABS_AGENT_ID` y `ELEVENLABS_API_KEY` por cuatro
 sitios, **en este orden**. El primero que traiga un valor gana, y los que no se
 usen no estorban:
 
-| # | Dónde | ¿En el repositorio? | ¿Sobrevive a un despliegue? | Cómo se edita |
+| # | Dónde | ¿En el repositorio? | ¿Sobrevive a un despliegue? | Notas |
 | --- | --- | --- | --- | --- |
-| 1 | `SetEnv` en el `.htaccess` | **Sí** ⚠ | **No** ⚠ | Editor de texto |
-| 2 | **Plesk → PHP Settings → `env[…]`** ★ | No | **Sí** | Panel de Plesk |
-| 3 | `wj-content/api/config.php` ★ | No (en `.gitignore`) | **Sí** | File Manager |
-| 4 | `<vhost>/private/elevenlabs.ini` | No | **Sí** | File Manager / SSH |
+| 1 | `SetEnv` en el `.htaccess` | **Sí** ⚠ | **No** ⚠ | Funciona, pero hay que reponerlo tras cada despliegue |
+| 2 | Variables de entorno del servidor | No | Sí | **En Plesk con alt-php tumba FPM** — ver el aviso de arriba |
+| 3 | **`wj-content/api/config.php`** ★ | No (en `.gitignore`) | **Sí** | La recomendada |
+| 4 | `<vhost>/private/elevenlabs.ini` | No | **Sí** | La más conservadora |
 
 ### 1 · En el `.htaccess` — lo que preguntaste
 
@@ -80,11 +110,20 @@ por eso no es la opción recomendada:
 Si el sitio se despliega a mano por FTP y no por Git, la segunda pega
 desaparece y esta opción es perfectamente válida.
 
-### 2 · Variables de entorno de Plesk ★ recomendada
+### 2 · Variables de entorno del servidor
 
-Ya explicada arriba. Sin archivos, sin repositorio, sin sorpresas.
+El endpoint lee `getenv('ELEVENLABS_API_KEY')`, así que cualquier forma de
+declarar variables de entorno para PHP sirve — un pool de FPM editado a mano,
+un `SetEnv` del vhost, un contenedor.
 
-### 3 · `wj-content/api/config.php` ★ buena alternativa
+**Lo que NO sirve es el campo de Plesk**: ahí la sintaxis `env[…]` tumba
+PHP-FPM, como se explica arriba. Si administras el servidor por SSH y quieres
+esta vía, la declaración va en el pool de FPM del dominio, no en el campo del
+panel.
+
+Para un sitio en Plesk, la opción 3 hace lo mismo sin riesgo.
+
+### 3 · `wj-content/api/config.php` ★ la recomendada
 
 Un archivo PHP junto al endpoint. Está en el `.gitignore`, así que ni se sube
 al repositorio ni lo pisa un despliegue.

@@ -27,10 +27,13 @@ DirectoryIndex index.html
 #   2. Un despliegue por Git SOBREESCRIBE este archivo, y con él tus valores.
 #      Tendrás que volver a ponerlos después de cada despliegue.
 #
-# Por esas dos razones lo recomendado en Plesk es NO usar esto, sino
-# Websites & Domains → PHP Settings → Additional configuration directives,
-# que no está en el repositorio y sobrevive a los despliegues. La otra opción
-# cómoda es wj-content/api/config.php, que está en el .gitignore.
+# Por esas dos razones lo recomendado es NO usar esto, sino
+# wj-content/api/config.php: está en el .gitignore, sobrevive a los
+# despliegues y no puede tumbar el servidor.
+#
+# Lo que NO hay que hacer es poner env[...] en PHP Settings → Additional
+# configuration directives de Plesk: en alt-php ese campo se valida como
+# php.ini, la sintaxis env[...] no existe ahí y PHP-FPM se queda sin arrancar.
 #
 # Todo explicado en wj-admin/VOZ.md.
 # ---------------------------------------------------------------------------

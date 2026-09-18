@@ -16,7 +16,11 @@
  * AGENTE PÚBLICO: el ID no es un secreto y el navegador se conecta con él.
  * Es el modo recomendado — no hay ninguna credencial que proteger.
  *
- * Otras formas de configurar lo mismo, en wj-admin/VOZ.md.
+ * Esta es la forma recomendada en Plesk. NO uses `env[...]` en PHP Settings →
+ * Additional configuration directives: en alt-php ese campo se valida como
+ * php.ini, esa sintaxis no existe ahí y PHP-FPM se queda sin arrancar.
+ *
+ * Las otras formas de configurar lo mismo, en wj-admin/VOZ.md.
  */
 
 return [
