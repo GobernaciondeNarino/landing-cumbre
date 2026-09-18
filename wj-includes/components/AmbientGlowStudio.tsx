@@ -37,15 +37,15 @@ export default function AmbientGlowStudio({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            className="absolute bottom-14 right-0 w-64 rounded-2xl bg-abyss/90 backdrop-blur-xl border border-white/10 shadow-[0_20px_60px_-20px_#8c0001] p-5"
+            className="absolute bottom-14 right-0 w-64 rounded-2xl bg-abyss/90 backdrop-blur-xl border border-ink/10 shadow-[0_20px_60px_-24px_rgba(11,13,18,0.4)] p-5"
           >
-            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/40 mb-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/40 mb-4">
               Ambient Glow Studio
             </p>
 
             <label className="block mb-4">
-              <span className="flex justify-between font-mono text-[10px] text-white/60 mb-1">
-                Tamaño <span className="text-amber">{glowSize}</span>
+              <span className="flex justify-between font-mono text-[10px] text-ink/60 mb-1">
+                Tamaño <span className="text-amber-ink">{glowSize}</span>
               </span>
               <input
                 type="range"
@@ -58,8 +58,8 @@ export default function AmbientGlowStudio({
             </label>
 
             <label className="block mb-4">
-              <span className="flex justify-between font-mono text-[10px] text-white/60 mb-1">
-                Intensidad <span className="text-amber">{glowIntensity.toFixed(1)}</span>
+              <span className="flex justify-between font-mono text-[10px] text-ink/60 mb-1">
+                Intensidad <span className="text-amber-ink">{glowIntensity.toFixed(1)}</span>
               </span>
               <input
                 type="range"
@@ -80,8 +80,8 @@ export default function AmbientGlowStudio({
                   aria-label={`Glow ${swatch.label}`}
                   aria-pressed={ambientGlowColor === swatch.rgba}
                   onClick={() => onColorChange(swatch.rgba)}
-                  className={`size-7 rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky ${
-                    ambientGlowColor === swatch.rgba ? "ring-2 ring-white/60 ring-offset-2 ring-offset-abyss" : ""
+                  className={`size-7 rounded-full transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink ${
+                    ambientGlowColor === swatch.rgba ? "ring-2 ring-ink/60 ring-offset-2 ring-offset-abyss" : ""
                   }`}
                   style={{ background: swatch.hex }}
                 />
@@ -96,7 +96,7 @@ export default function AmbientGlowStudio({
         onClick={() => setShowGlowControls((v) => !v)}
         aria-label={showGlowControls ? "Cerrar controles de glow" : "Abrir controles de glow"}
         aria-expanded={showGlowControls}
-        className="size-11 rounded-full bg-abyss/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-ember hover:border-ember/40 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+        className="size-11 rounded-full bg-abyss/80 backdrop-blur-md border border-ink/10 flex items-center justify-center text-ink/70 hover:text-ember-ink hover:border-ember/40 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink"
       >
         {showGlowControls ? <X className="size-4" /> : <SlidersHorizontal className="size-4" />}
       </button>

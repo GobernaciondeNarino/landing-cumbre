@@ -8,6 +8,7 @@ import {
   LinearFilter,
   Mesh,
   OneFactor,
+  OneMinusSrcAlphaFactor,
   PerspectiveCamera,
   PlaneGeometry,
   Points,
@@ -19,7 +20,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { FIELD_FRAGMENT, FIELD_VERTEX, FIGURE_FRAGMENT, FIGURE_VERTEX } from "./shaders";
-import { safePixelRatio } from "./support";
+import { safePixelRatio, type SceneTheme } from "./support";
 
 /**
  * Escena WebGL de los dos escenarios de la landing.
@@ -43,20 +44,34 @@ export type SceneVariant = "hero" | "sequence";
 interface CumbreSceneOptions {
   canvas: HTMLCanvasElement;
   variant: SceneVariant;
+  /** Lo decide el CSS; ver `detectTheme`. */
+  theme: SceneTheme;
   onContextLost?: () => void;
 }
 
 /**
- * Paleta institucional del campo. El azul y el blanco llevan el peso y los
- * cálidos puntúan: con el reparto invertido el fondo se leía como confeti y no
- * como el campo de datos sobrio que pide la identidad de la Gobernación.
+ * Paleta institucional del campo. El azul lleva el peso y los cálidos puntúan:
+ * con el reparto invertido el fondo se lee como confeti y no como el campo de
+ * datos sobrio que pide la identidad de la Gobernación.
+ *
+ * Sobre blanco los mismos tonos se apagan, así que el tema claro usa las
+ * variantes de texto (las que llegan a 4,5:1) más un neutro oscuro que hace de
+ * polvo fino; los originales quedan para los rellenos de la interfaz.
  */
-const FIELD_PALETTE: Array<[string, number]> = [
-  ["#009edb", 0.36],
-  ["#dce9ff", 0.28],
-  ["#ff6300", 0.22],
-  ["#feb100", 0.14],
-];
+const FIELD_PALETTE: Record<SceneTheme, Array<[string, number]>> = {
+  dark: [
+    ["#009edb", 0.36],
+    ["#dce9ff", 0.28],
+    ["#ff6300", 0.22],
+    ["#feb100", 0.14],
+  ],
+  light: [
+    ["#007eaf", 0.34],
+    ["#2a3242", 0.26],
+    ["#c94e00", 0.24],
+    ["#9d6e00", 0.16],
+  ],
+};
 
 const FIELD_DEPTH = 34;
 const FIELD_HALF_WIDTH = 26;
@@ -95,6 +110,7 @@ export class CumbreScene {
   private clock = 0;
   private lastTime = 0;
 
+  private readonly theme: SceneTheme;
   private readonly onContextLost?: () => void;
   private readonly handleContextLost = (event: Event) => {
     event.preventDefault();
@@ -102,8 +118,9 @@ export class CumbreScene {
     this.onContextLost?.();
   };
 
-  constructor({ canvas, variant, onContextLost }: CumbreSceneOptions) {
+  constructor({ canvas, variant, theme, onContextLost }: CumbreSceneOptions) {
     this.onContextLost = onContextLost;
+    this.theme = theme;
 
     this.renderer = new WebGLRenderer({
       canvas,
@@ -124,13 +141,13 @@ export class CumbreScene {
     this.fieldCamera.position.set(0, 0, 6);
 
     const count = variant === "hero" ? 950 : 1300;
-    const { geometry, material } = createField(count, variant);
+    const { geometry, material } = createField(count, variant, theme);
     this.fieldMaterial = material;
     this.field = new Points(geometry, material);
     this.field.frustumCulled = false;
     this.fieldScene.add(this.field);
 
-    this.figureMaterial = createFigureMaterial();
+    this.figureMaterial = createFigureMaterial(theme);
     this.figure = new Mesh(new PlaneGeometry(2, 2), this.figureMaterial);
     this.figure.frustumCulled = false;
     this.figureScene.add(this.figure);
@@ -196,6 +213,19 @@ export class CumbreScene {
   /** Opacidad de la figura: el escenario de secuencia la usa para entrar. */
   setOpacity(opacity: number): void {
     this.opacity = clamp(opacity, 0, 1);
+  }
+
+  /**
+   * Punto del fotograma que debe sobrevivir al recorte `cover`, en [0, 1].
+   * Con la figura rodada a un tercio del encuadre, un móvil en vertical
+   * recortaría hasta dejarla fuera si el punto se quedara en el centro.
+   */
+  setFocus(x: number, y = 0.5): void {
+    if (this.disposed) return;
+    (this.figureMaterial.uniforms.uFocus.value as Vector2).set(
+      clamp(x, 0, 1),
+      clamp(y, 0, 1),
+    );
   }
 
   resize(width: number, height: number): void {
@@ -274,8 +304,15 @@ export class CumbreScene {
     fieldUniforms.uEnergy.value = this.energy;
 
     this.renderer.clear();
-    this.renderer.render(this.fieldScene, this.fieldCamera);
-    this.renderer.render(this.figureScene, this.figureCamera);
+    if (this.theme === "light") {
+      // El plano se pinta opaco, así que va primero y el polvo queda delante de
+      // la figura. En oscuro es al revés: el plano suma sobre el campo.
+      this.renderer.render(this.figureScene, this.figureCamera);
+      this.renderer.render(this.fieldScene, this.fieldCamera);
+    } else {
+      this.renderer.render(this.fieldScene, this.fieldCamera);
+      this.renderer.render(this.figureScene, this.figureCamera);
+    }
   };
 
   /**
@@ -331,7 +368,7 @@ export class CumbreScene {
 
 // --- fábricas ---------------------------------------------------------------
 
-function createField(count: number, variant: SceneVariant) {
+function createField(count: number, variant: SceneVariant, theme: SceneTheme) {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const seeds = new Float32Array(count);
@@ -343,7 +380,7 @@ function createField(count: number, variant: SceneVariant) {
     positions[i * 3 + 1] = (Math.random() * 2 - 1) * FIELD_HALF_HEIGHT;
     positions[i * 3 + 2] = Math.random() * FIELD_DEPTH - (FIELD_DEPTH - 4);
 
-    color.set(pickPaletteColor());
+    color.set(pickPaletteColor(theme));
     colors[i * 3] = color.r;
     colors[i * 3 + 1] = color.g;
     colors[i * 3 + 2] = color.b;
@@ -371,18 +408,24 @@ function createField(count: number, variant: SceneVariant) {
       // El escenario de secuencia se lee con texto encima: polvo más discreto.
       uSize: { value: variant === "hero" ? 7.5 : 5.5 },
       uDepth: { value: FIELD_DEPTH },
-      uFieldAlpha: { value: variant === "hero" ? 0.62 : 0.5 },
+      // Sobre blanco un punto opaco pesa más que uno que suma luz.
+      uFieldAlpha: {
+        value: theme === "light"
+          ? (variant === "hero" ? 0.5 : 0.38)
+          : (variant === "hero" ? 0.62 : 0.5),
+      },
     },
+    defines: themeDefines(theme),
     transparent: true,
     depthTest: false,
     depthWrite: false,
   });
-  applyAdditiveAlpha(material);
+  applyBlending(material, theme);
 
   return { geometry, material };
 }
 
-function createFigureMaterial(): ShaderMaterial {
+function createFigureMaterial(theme: SceneTheme): ShaderMaterial {
   const material = new ShaderMaterial({
     vertexShader: FIGURE_VERTEX,
     fragmentShader: FIGURE_FRAGMENT,
@@ -399,40 +442,55 @@ function createFigureMaterial(): ShaderMaterial {
       uCool: { value: new Color("#009edb") },
       uAura: { value: 0.32 },
       uAuraSize: { value: 0.8 },
+      // Cuánto se empuja el plató del rodaje hacia el blanco del papel.
+      uPlateLift: { value: 0.45 },
+      uFocus: { value: new Vector2(0.5, 0.5) },
     },
+    defines: themeDefines(theme),
     transparent: true,
     depthTest: false,
     depthWrite: false,
   });
-  applyAdditiveAlpha(material);
+  applyBlending(material, theme);
   return material;
 }
 
-/**
- * Aditivo también en el canal alfa. El `AdditiveBlending` de three deja el
- * alfa en 1 allí donde dibuja, y como el quad cubre toda la pantalla el lienzo
- * se volvería opaco y taparía el degradado y el título del DOM. Sumando el
- * alfa que emite el shader — la luminancia de lo pintado — el lienzo sólo se
- * vuelve opaco en proporción a lo que ilumina.
- */
-function applyAdditiveAlpha(material: ShaderMaterial): void {
-  material.blending = CustomBlending;
-  material.blendEquation = AddEquation;
-  material.blendSrc = OneFactor;
-  material.blendDst = OneFactor;
-  material.blendEquationAlpha = AddEquation;
-  material.blendSrcAlpha = OneFactor;
-  material.blendDstAlpha = OneFactor;
+function themeDefines(theme: SceneTheme): Record<string, string> {
+  return theme === "light" ? { WJ_LIGHT: "1" } : {};
 }
 
-function pickPaletteColor(): string {
+/**
+ * Mezcla según el papel.
+ *
+ * Claro — «encima» con alfa premultiplicado (src·1 + dst·(1−α)). El shader ya
+ * entrega el color multiplicado por su alfa.
+ *
+ * Oscuro — aditivo también en el canal alfa. El `AdditiveBlending` de three
+ * deja el alfa en 1 allí donde dibuja, y como el quad cubre toda la pantalla el
+ * lienzo se volvería opaco y taparía el degradado y el título del DOM. Sumando
+ * el alfa que emite el shader — la luminancia de lo pintado — el lienzo sólo se
+ * vuelve opaco en proporción a lo que ilumina.
+ */
+function applyBlending(material: ShaderMaterial, theme: SceneTheme): void {
+  material.blending = CustomBlending;
+  material.blendEquation = AddEquation;
+  material.blendEquationAlpha = AddEquation;
+  material.blendSrc = OneFactor;
+  material.blendSrcAlpha = OneFactor;
+  const dst = theme === "light" ? OneMinusSrcAlphaFactor : OneFactor;
+  material.blendDst = dst;
+  material.blendDstAlpha = dst;
+}
+
+function pickPaletteColor(theme: SceneTheme): string {
+  const paleta = FIELD_PALETTE[theme];
   const roll = Math.random();
   let acc = 0;
-  for (const [hex, weight] of FIELD_PALETTE) {
+  for (const [hex, weight] of paleta) {
     acc += weight;
     if (roll <= acc) return hex;
   }
-  return FIELD_PALETTE[0][0];
+  return paleta[0][0];
 }
 
 /**

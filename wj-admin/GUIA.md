@@ -3,10 +3,15 @@
 Todo lo editable del sitio vive en la carpeta **`wj-content/`**. No necesitas tocar
 `wj-includes/` (el código de la aplicación) para cambiar textos, enlaces o vídeos.
 
+> El sitio está publicado en su **versión clara** — fondo blanco y letras negras. La
+> versión oscura sigue guardada en el historial: para volver a ella, ver
+> **[`RESTAURAR.md`](../RESTAURAR.md)**.
+
 ## Estructura del proyecto
 
 ```
 wj-admin/       Esta guía de administración.
+RESTAURAR.md    Cómo volver a la versión oscura.
 wj-content/     TODO lo editable: textos, capítulos, enlaces y archivos subidos.
   wj-textos.ts      Textos del banner, cabecera, sección de inscripción y pie.
   wj-capitulos.ts   Los 5 capítulos del recorrido con scroll (títulos, párrafos, CTA).
@@ -40,6 +45,8 @@ wj-vite.config.ts  Configuración del compilador.
 | Correo y web del pie de página                  | `wj-content/wj-enlaces.ts`  | `CONTACTO` |
 | Columnas del pie de página                      | `wj-content/wj-textos.ts`   | `PIE` |
 | Colores de la paleta                            | `wj-includes/index.css`     | Bloque `@theme` (tokens `--color-…`) |
+| Fondo y color del texto (claro/oscuro)          | `wj-includes/index.css`     | `--color-abyss` y `--color-ink`; ver `RESTAURAR.md` |
+| Encuadre del personaje en móvil                 | `wj-includes/components/HeroStage.tsx` | `FOCO_PRINCIPAL` (0 = izquierda, 1 = derecha) |
 | Densidad y color del campo de partículas        | `wj-includes/webgl/CumbreScene.ts` | `FIELD_PALETTE` y el `count` de `createField` |
 | Título/descripción de la pestaña (SEO)          | `index.html`                | `<title>` y `<meta name="description">` |
 
@@ -71,6 +78,9 @@ compila; el sitio ya está configurado para mantener ambos en sincronía.
 
 Los dos vídeos tienen que cumplir lo mismo:
 
+- **Plató blanco.** Los clips actuales están rodados sobre fondo blanco porque el sitio
+  es claro. Un clip rodado sobre negro se vería aquí como un rectángulo oscuro sobre el
+  papel — si vas a cambiar el fondo del sitio, cambia los dos a la vez.
 - **MP4 H.264** (`avc1`) en `yuv420p`, **sin pista de audio**.
 - `faststart`: el átomo `moov` al principio del archivo.
 - **GOP corto**: un fotograma clave cada 6–8. Es lo que hace que el scrub responda al
@@ -97,17 +107,43 @@ todavía no ha leído los metadatos.
 
 ## El personaje y la escena WebGL
 
-El banner y el recorrido entregan su `<video>` a una escena **three.js** que:
-
-- recorta la figura por luminancia — por eso los clips deben estar rodados sobre fondo
-  casi negro (`#000A22`), como los actuales;
-- la compone sobre un campo de partículas con los colores de la Gobernación;
-- responde al cursor (lente, aberración cromática) y al scroll.
+El banner y el recorrido entregan su `<video>` a una escena **three.js** que lo compone
+sobre un campo de partículas con los colores de la Gobernación y responde al cursor
+(lente, aberración cromática) y al scroll.
 
 El `<video>` sigue en la página, invisible: es la fuente de la textura. Si el navegador
 no tiene WebGL, o el sistema del visitante pide *movimiento reducido*, la escena no se
 monta y el `<video>` vuelve a pintarse tal cual. **No hay nada que configurar**: cambiar
-el vídeo en `uploads/videos/` es suficiente, la escena coge el nuevo automáticamente.
+el vídeo en `uploads/videos/` es suficiente, la escena coge el nuevo automáticamente —
+incluido el modo claro u oscuro, que deduce del color de fondo del CSS.
 
 Los mandos del **Ambient Glow Studio** (el botón inferior derecho del sitio) gobiernan
 el halo de la escena: color de la paleta institucional, tamaño e intensidad.
+
+## Mover el vídeo con el teléfono
+
+En móvil aparece un botón con una brújula junto al control de sonido: enciende el
+**giroscopio** y entonces inclinar el teléfono mueve el vídeo del banner, igual que el
+ratón en un ordenador. Treinta grados de giro recorren el clip entero.
+
+Es una opción y no algo automático porque iPhone exige pedir permiso al visitante, y ese
+permiso sólo se puede pedir cuando alguien pulsa algo. Detalles a tener en cuenta:
+
+- **Hace falta HTTPS.** En Android el navegador no entrega las lecturas del sensor por
+  `http://`. En el dominio de la Gobernación, con el certificado puesto, funciona.
+- Si el aparato no tiene sensor, el botón no aparece.
+- Si el visitante deniega el permiso, el botón se queda apagado y lo explica al pasar el
+  dedo por encima; se vuelve a conceder desde los ajustes del navegador.
+
+## Contraste de los colores sobre blanco
+
+Los acentos de la identidad (ember, sky, amber) no llegan por sí solos al contraste que
+pide la Resolución 1519 cuando se usan como **texto** sobre blanco. Por eso hay dos
+juegos de tokens en `index.css`:
+
+- `--color-ember`, `--color-sky`, `--color-amber` — los colores de marca, para
+  **rellenos**: botones, puntos, barras. Ahí no hay problema de contraste.
+- `--color-ember-ink`, `--color-sky-ink`, `--color-amber-ink` — los mismos tonos algo
+  más oscuros, para **texto**. Llegan a 4,5:1 sobre blanco.
+
+Si añades texto en color, usa las variantes `-ink`.

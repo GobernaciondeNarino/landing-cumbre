@@ -1,12 +1,25 @@
 // ============================================================================
 // SHADERS GLSL DE LA ESCENA WEBGL
-// Todos escriben en additive puro (src·1 + dst·1) tanto en color como en alfa:
-// el alfa que emiten es la luminancia de lo que pintan, así el lienzo queda
-// transparente donde no hay nada y el navegador compone
-//     resultado = aporte + (1 − luminancia) · fondo
-// que es el equivalente WebGL del `mix-blend-screen` que usaban los <video>.
-// Paleta: identidad visual de la Gobernación de Nariño (#00133D fondo,
-// #FF6300 ember, #009EDB sky, #FEB100 amber).
+//
+// Dos modos, seleccionados con el define `WJ_LIGHT`, porque el fondo cambia
+// la física de la composición:
+//
+//  · Oscuro — todo escribe en aditivo puro (src·1 + dst·1) en color y en alfa;
+//    el alfa que emiten es la luminancia de lo pintado, así el lienzo queda
+//    transparente donde no hay nada y el navegador compone
+//        resultado = aporte + (1 − luminancia) · fondo,
+//    que es el equivalente WebGL del `mix-blend-screen` de los <video>.
+//    La figura se recorta por luminancia: se rodó sobre un plató casi negro.
+//
+//  · Claro — sobre blanco el aditivo lo quema todo, así que se compone «encima»
+//    con alfa premultiplicado. Y NO se recorta por luminancia: los clips claros
+//    llevan a la figura blanca sobre plató blanco, donde figura y fondo
+//    comparten luminancia y cualquier recorte le abriría agujeros en la
+//    armadura. El plano se pinta opaco y son los degradados del DOM los que lo
+//    funden con la página, que es como estaban pensados desde el principio.
+//
+// Paleta: identidad visual de la Gobernación de Nariño (#FF6300 ember,
+// #009EDB sky, #FEB100 amber).
 // ============================================================================
 
 /** Utilidades compartidas: luminancia Rec.709 y ruido barato para el grano. */
@@ -83,8 +96,15 @@ ${COMMON}
     if (d > 0.25) discard;
 
     float halo = smoothstep(0.25, 0.0, d);
-    vec3 rgb = vColor * halo * vAlpha;
-    gl_FragColor = vec4(rgb, wjLuma(rgb));
+
+    #ifdef WJ_LIGHT
+      // Encima, con alfa premultiplicado: puntos de color sobre el papel.
+      float a = halo * vAlpha;
+      gl_FragColor = vec4(vColor * a, a);
+    #else
+      vec3 rgb = vColor * halo * vAlpha;
+      gl_FragColor = vec4(rgb, wjLuma(rgb));
+    #endif
   }
 `;
 
@@ -118,18 +138,33 @@ ${COMMON}
   uniform vec3  uCool;
   uniform float uAura;
   uniform float uAuraSize;
+  uniform float uPlateLift;
+  uniform vec2  uFocus;
 
   varying vec2 vUv;
 
-  /** Réplica exacta de object-fit: cover sobre las UV del plano. */
+  /**
+   * object-fit: cover sobre las UV del plano, con punto de interés.
+   *
+   * uFocus dice qué parte del fotograma tiene que sobrevivir al recorte. Con
+   * el centro fijo, un móvil en vertical recorta tanto a los lados que deja
+   * fuera a una figura rodada a un tercio del encuadre y enseña plató vacío.
+   * La ventana se desplaza hacia el punto y se topa con los bordes del vídeo.
+   */
   vec2 coverUv(vec2 uv) {
     float rs = uResolution.x / max(uResolution.y, 1.0);
     float rm = uMediaSize.x / max(uMediaSize.y, 1.0);
     vec2 st = uv;
     if (rs > rm) {
-      st.y = (st.y - 0.5) * (rm / rs) + 0.5;   // pantalla ancha: recorta arriba y abajo
+      float escala = rm / rs;                  // pantalla ancha: recorta arriba y abajo
+      float mitad = 0.5 * escala;
+      float centro = clamp(uFocus.y, mitad, 1.0 - mitad);
+      st.y = (st.y - 0.5) * escala + centro;
     } else {
-      st.x = (st.x - 0.5) * (rs / rm) + 0.5;   // pantalla alta: recorta a los lados
+      float escala = rs / rm;                  // pantalla alta: recorta a los lados
+      float mitad = 0.5 * escala;
+      float centro = clamp(uFocus.x, mitad, 1.0 - mitad);
+      st.x = (st.x - 0.5) * escala + centro;
     }
     return st;
   }
@@ -155,16 +190,26 @@ ${COMMON}
     float b = texture2D(uMap, clamp(uv - dir * split, 0.0, 1.0)).b;
     vec3 color = vec3(r, g.g, b);
 
-    // Recorte por luminancia: la figura está rodada sobre #000A22 casi negro,
-    // así que la luz la separa del fondo sin arrastrar el plató.
     float l = wjLuma(color);
-    float key = smoothstep(0.035, 0.28, l);
 
-    // Etalonaje de marca: altas luces hacia el acento cálido, medios-bajos al cian.
-    color = mix(color, uWarm, smoothstep(0.38, 0.95, l) * 0.26);
-    color = mix(color, uCool, (1.0 - smoothstep(0.06, 0.46, l)) * 0.30);
+    #ifdef WJ_LIGHT
+      // El plató es un gris muy claro con su propio degradado. Se empuja hacia
+      // el blanco del papel lo justo para que el plano no se lea como un panel
+      // gris, sin llegar a aplastar los medios que dan forma a la figura.
+      color = mix(color, vec3(1.0), smoothstep(0.45, 0.95, l) * uPlateLift);
+      // Etalonaje de marca, al revés que en oscuro: aquí manda la sombra.
+      color = mix(color, uCool * 0.9, (1.0 - smoothstep(0.10, 0.55, l)) * 0.22);
+    #else
+      // Recorte por luminancia: la figura está rodada sobre #000A22 casi negro,
+      // así que la luz la separa del fondo sin arrastrar el plató.
+      float key = smoothstep(0.035, 0.28, l);
 
-    // Barrido y grano: textura de emisión, siempre por debajo del umbral molesto.
+      // Etalonaje de marca: altas luces al acento cálido, medios-bajos al cian.
+      color = mix(color, uWarm, smoothstep(0.38, 0.95, l) * 0.26);
+      color = mix(color, uCool, (1.0 - smoothstep(0.06, 0.46, l)) * 0.30);
+    #endif
+
+    // Barrido y grano: textura, siempre por debajo del umbral molesto.
     float scan = 0.965 + 0.035 * sin(vUv.y * uResolution.y * 1.5 + uTime * 2.0);
     float grain = (wjHash(vUv * uResolution * 0.5 + uTime) - 0.5) * (0.030 + uEnergy * 0.045);
     color = color * scan + grain;
@@ -173,11 +218,17 @@ ${COMMON}
     vec2 auraCenter = vec2(0.5, 0.52) + uPointer * vec2(0.09, -0.05);
     vec2 ac = vec2((vUv.x - auraCenter.x) * aspect, vUv.y - auraCenter.y);
     float aura = exp(-dot(ac, ac) * (3.2 / max(uAuraSize, 0.05)));
-    vec3 auraColor = uWarm * aura * uAura;
 
-    float vignette = smoothstep(1.05, 0.25, edge);
-    vec3 rgb = max(color, 0.0) * key * vignette * uOpacity * uHasFrame + auraColor;
-
-    gl_FragColor = vec4(rgb, wjLuma(rgb));
+    #ifdef WJ_LIGHT
+      // Sobre blanco un aditivo no se ve: el aura tiñe el plató.
+      color = mix(color, uWarm, aura * uAura * 0.45);
+      float alpha = uOpacity * uHasFrame;
+      gl_FragColor = vec4(clamp(color, 0.0, 1.0) * alpha, alpha);
+    #else
+      vec3 auraColor = uWarm * aura * uAura;
+      float vignette = smoothstep(1.05, 0.25, edge);
+      vec3 rgb = max(color, 0.0) * key * vignette * uOpacity * uHasFrame + auraColor;
+      gl_FragColor = vec4(rgb, wjLuma(rgb));
+    #endif
   }
 `;

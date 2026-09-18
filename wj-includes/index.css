@@ -1,18 +1,42 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
+/* ============================================================================
+   TEMA CLARO — fondo blanco, letras negras.
+   Los cinco colores de la identidad de la Gobernación de Nariño no cambian:
+   cambia el papel sobre el que se imprimen. Para volver al tema oscuro, ver
+   RESTAURAR.md.
+   ============================================================================ */
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 
-  /* #00133D es el FONDO, no un acento. Los cuatro restantes son la escala de acento. */
-  --color-abyss: #00133d;       /* fondo principal de toda la página */
-  --color-abyss-deep: #000a22;  /* núcleo oscuro bajo los vídeos */
-  --color-sky: #009edb;         /* acento frío: foco, enlaces, capítulo activo */
-  --color-amber: #feb100;       /* acento cálido secundario: cifras, métricas, datos */
-  --color-ember: #ff6300;       /* ACENTO PRINCIPAL: CTA, glow, iconos, índices */
-  --color-crimson: #8c0001;     /* acento profundo: bordes, hover del CTA, sombras */
+  /* --- Superficies ------------------------------------------------------- */
+  /* `abyss` conserva el nombre por compatibilidad: siempre es EL FONDO. */
+  --color-abyss: #ffffff;       /* fondo principal de toda la página */
+  --color-abyss-deep: #f1f2f5;  /* plató bajo los vídeos, campos y paneles */
+
+  /* --- Tinta ------------------------------------------------------------- */
+  --color-ink: #0b0d12;         /* texto y trazos sobre el fondo */
+  --color-on-accent: #0b0d12;   /* texto sobre un relleno claro (ember, amber) */
+  --color-on-dark: #ffffff;     /* texto sobre un relleno oscuro (crimson) */
+
+  /* --- Acentos institucionales, para RELLENOS ----------------------------- */
+  --color-sky: #009edb;         /* acento frío */
+  --color-amber: #feb100;       /* acento cálido secundario */
+  --color-ember: #ff6300;       /* ACENTO PRINCIPAL: CTA, glow, iconos */
+  --color-crimson: #8c0001;     /* acento profundo: hover del CTA, sombras */
+
+  /* --- Acentos institucionales, para TEXTO -------------------------------- */
+  /* Mismo tono y saturación, bajados en valor hasta 4,5:1 sobre blanco. Los
+     originales se quedan en 1,8:1 (amber) y 3:1 (ember, sky), por debajo de lo
+     que exige la Resolución 1519 para texto. En relleno siguen siendo los de
+     arriba, que es donde la marca se reconoce. */
+  --color-sky-ink: #007eaf;     /* 4,56:1 */
+  --color-amber-ink: #9d6e00;   /* 4,50:1 */
+  --color-ember-ink: #c94e00;   /* 4,59:1 */
 
   --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-float: float 6s ease-in-out infinite;
@@ -26,14 +50,49 @@
 .grid-bg {
   background-size: 50px 50px;
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, rgba(11, 13, 18, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(11, 13, 18, 0.05) 1px, transparent 1px);
+}
+
+/** Plató de los dos escenarios: el mismo blanco del papel, con una caída muy
+    suave hacia los bordes que recoge el fondo de estudio de los vídeos. */
+.stage-bg {
+  background: radial-gradient(
+    ellipse at center,
+    var(--color-abyss) 0%,
+    var(--color-abyss-deep) 70%
+  );
+}
+
+/** Velo vertical de los escenarios: funde el vídeo con la página por arriba y
+    por abajo, y da a los bloques de texto del pie un papel donde apoyarse. */
+.stage-fade {
+  background: linear-gradient(
+    to top,
+    var(--color-abyss) 0%,
+    color-mix(in srgb, var(--color-abyss) 88%, transparent) 16%,
+    transparent 42%,
+    transparent 74%,
+    var(--color-abyss) 100%
+  );
+}
+
+/** Sólo por abajo. En el banner la figura ocupa la mitad superior del cuadro,
+    así que un velo simétrico le comería la cara: aquí sólo hace falta dar
+    papel al bloque de texto del pie. */
+.stage-fade-bottom {
+  background: linear-gradient(
+    to top,
+    var(--color-abyss) 0%,
+    color-mix(in srgb, var(--color-abyss) 86%, transparent) 14%,
+    transparent 46%
+  );
 }
 
 html { scroll-behavior: auto; }
-body { background: #00133d; }
+body { background: var(--color-abyss); color: var(--color-ink); }
 
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #00133d; }
-::-webkit-scrollbar-thumb { background: #0a2a5e; border-radius: 3px; }
+::-webkit-scrollbar-track { background: #eef0f4; }
+::-webkit-scrollbar-thumb { background: #c7ccd6; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #ff6300; }

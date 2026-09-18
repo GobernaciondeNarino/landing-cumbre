@@ -57,7 +57,7 @@ function Page() {
   }, []);
 
   return (
-    <div className="relative bg-abyss text-white font-sans selection:bg-ember selection:text-abyss">
+    <div className="relative bg-abyss text-ink font-sans selection:bg-ember selection:text-on-accent">
       <Header
         activeSection={activeSection}
         isMenuOpen={isMenuOpen}

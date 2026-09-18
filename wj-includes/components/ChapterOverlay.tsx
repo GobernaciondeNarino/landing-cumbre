@@ -57,8 +57,8 @@ export default function ChapterOverlay({
         } justify-center`}
       >
         <div className={`max-w-xl pointer-events-auto ${alignRight ? "md:text-right" : ""}`}>
-          <p className="font-mono text-ember text-xs tracking-[0.3em] mb-3">{chapter.index}</p>
-          <p className="text-white/40 text-xs uppercase tracking-[0.25em] mb-4">
+          <p className="font-mono text-ember-ink text-xs tracking-[0.3em] mb-3">{chapter.index}</p>
+          <p className="text-ink/40 text-xs uppercase tracking-[0.25em] mb-4">
             {chapter.kicker}
           </p>
           <h2
@@ -67,14 +67,14 @@ export default function ChapterOverlay({
           >
             {chapter.title}
           </h2>
-          <p className="text-white/60 text-base leading-relaxed">{chapter.body}</p>
+          <p className="text-ink/60 text-base leading-relaxed">{chapter.body}</p>
 
           {"services" in chapter && chapter.services && (
             <ul className={`mt-6 space-y-3 ${alignRight ? "md:ml-auto" : ""}`}>
               {chapter.services.map((service) => (
                 <li
                   key={service}
-                  className={`flex items-center gap-3 text-white/70 text-sm ${
+                  className={`flex items-center gap-3 text-ink/70 text-sm ${
                     alignRight ? "md:flex-row-reverse" : ""
                   }`}
                 >
@@ -100,8 +100,8 @@ export default function ChapterOverlay({
                   />
                 ))}
               </div>
-              <p className="font-mono text-xs text-white/40">
-                <span className="text-amber">{chapter.avataresCifra}</span>{" "}
+              <p className="font-mono text-xs text-ink/40">
+                <span className="text-amber-ink">{chapter.avataresCifra}</span>{" "}
                 {chapter.avataresNota}
               </p>
             </div>
@@ -112,9 +112,9 @@ export default function ChapterOverlay({
               href="#inscripcion"
               onMouseEnter={onHoverCta}
               className="group mt-8 inline-flex items-center gap-3 rounded-full bg-ember px-8 py-4
-                         font-display text-base font-bold text-abyss
-                         transition-colors hover:bg-crimson hover:text-white
-                         focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky"
+                         font-display text-base font-bold text-on-accent
+                         transition-colors hover:bg-crimson hover:text-on-dark
+                         focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-ink"
             >
               {chapter.ctaTexto}
               <ArrowUpRight className="size-5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

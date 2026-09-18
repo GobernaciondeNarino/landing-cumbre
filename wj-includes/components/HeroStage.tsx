@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   motion,
+  useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
   useScroll,
@@ -9,10 +10,12 @@ import {
 import HeroTitle from "./HeroTitle";
 import LeftInfoBlock from "./LeftInfoBlock";
 import RightInfoBlock from "./RightInfoBlock";
+import GyroToggle from "./GyroToggle";
 // La escena arrastra three.js: se carga aparte para no retrasar el primer
 // pintado. Hasta que llega, el escenario pinta el <video> del DOM.
 const WebGLStage = lazy(() => import("./WebGLStage"));
 import { useVideoScrub } from "../hooks/useVideoScrub";
+import { useGyroscope } from "../hooks/useGyroscope";
 import { VIDEO_PRINCIPAL_URL } from "../../wj-content/wj-enlaces";
 
 interface HeroStageProps {
@@ -23,6 +26,16 @@ interface HeroStageProps {
 
 /** Duración del clip del personaje principal, por si los metadatos tardan. */
 const DURACION_PRINCIPAL = 5.04;
+
+/**
+ * Punto de interés horizontal del encuadre, en [0, 1].
+ *
+ * El clip tiene a la figura a un tercio por la izquierda y dos tercios de
+ * plató a la derecha. Recortando por el centro, una pantalla vertical la deja
+ * fuera y enseña fondo vacío; anclando el recorte aquí, la figura entra en
+ * cuadro en cualquier proporción.
+ */
+const FOCO_PRINCIPAL = 0.27;
 
 export default function HeroStage({
   ambientGlowColor,
@@ -59,8 +72,20 @@ export default function HeroStage({
   const targetProgressRef = useRef(0.5);
   const currentProgressRef = useRef(0.5);
 
+  // Mando por inclinación para móvil: sustituye al ratón, que allí no existe.
+  const tilt = useMotionValue(0);
+  const alInclinar = useCallback(
+    (valor: number) => {
+      tilt.set(valor);
+      // Mismo mapeo que el cursor: el recorrido útil cubre el clip entero.
+      targetProgressRef.current = (valor + 1) / 2;
+    },
+    [tilt],
+  );
+  const giroscopio = useGyroscope(alInclinar);
+
   useEffect(() => {
-    if (!hasFinePointer || prefersReducedMotion) return;
+    if ((!hasFinePointer && !giroscopio.activo) || prefersReducedMotion) return;
     let raf = 0;
     const tick = () => {
       const current = currentProgressRef.current;
@@ -74,7 +99,7 @@ export default function HeroStage({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [hasFinePointer, prefersReducedMotion, seekToProgress]);
+  }, [hasFinePointer, giroscopio.activo, prefersReducedMotion, seekToProgress]);
 
   // En táctil el hero se scrubbea con su propio scroll; también alimenta el
   // fundido de salida hacia el primer capítulo.
@@ -83,7 +108,11 @@ export default function HeroStage({
     offset: ["start start", "end start"],
   });
   useMotionValueEvent(scrollYProgress, "change", (p) => {
-    if (!hasFinePointer && !prefersReducedMotion) seekToProgress(p);
+    // Con el giroscopio encendido manda la inclinación: si el scroll siguiera
+    // buscando fotograma, los dos se pelearían por el mismo vídeo.
+    if (!hasFinePointer && !prefersReducedMotion && !giroscopio.activo) {
+      seekToProgress(p);
+    }
   });
 
   // Fundido de salida del banner: al hacer scroll hacia el primer capítulo la
@@ -116,10 +145,7 @@ export default function HeroStage({
     >
       {/* z-0 · capa ambiente */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div
-          className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse at center, #000a22 0%, #00133d 65%)" }}
-        />
+        <div className="absolute inset-0 stage-bg" />
         <div className="absolute inset-0 grid-bg opacity-60 mix-blend-overlay" />
         {/* Los blur blobs sólo entran cuando no hay WebGL: con la escena activa
             el halo lo pinta el aura del shader, que además sigue al puntero. */}
@@ -130,7 +156,7 @@ export default function HeroStage({
               style={{
                 width: `${55 * glowIntensity}%`,
                 height: `${55 * glowIntensity}%`,
-                background: `radial-gradient(circle, ${ambientGlowColor} 0%, rgba(0,19,61,0) 70%)`,
+                background: `radial-gradient(circle, ${ambientGlowColor} 0%, rgba(255,255,255,0) 70%)`,
                 transform: `translate(-25%, 15%) scale(${glowSize / 100})`,
               }}
               animate={{ scale: [1, 1.05, 1], opacity: [0.7, 0.85, 0.7] }}
@@ -142,7 +168,7 @@ export default function HeroStage({
                 width: `${50 * glowIntensity}%`,
                 height: `${50 * glowIntensity}%`,
                 background:
-                  "radial-gradient(circle, rgba(0, 158, 219, 0.35) 0%, rgba(0,19,61,0) 70%)",
+                  "radial-gradient(circle, rgba(0, 158, 219, 0.35) 0%, rgba(255,255,255,0) 70%)",
                 transform: `translate(25%, -10%) scale(${glowSize / 100})`,
               }}
               animate={{ scale: [1, 1.1, 1], opacity: [0.75, 0.9, 0.75] }}
@@ -150,11 +176,13 @@ export default function HeroStage({
             />
           </>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-abyss via-transparent to-abyss opacity-90" />
+        <div className="absolute inset-0 stage-fade" />
       </div>
 
-      {/* z-5 · título, por debajo del vídeo para que la figura lo recorra */}
-      <div className="absolute inset-x-0 top-[16%] md:top-[14%] z-[5] select-none pointer-events-none">
+      {/* z-20 · título. Sobre papel blanco el plano de la figura se pinta
+          opaco, así que el texto va por encima; la figura entra por la
+          izquierda del encuadre y el titular vive en el margen derecho. */}
+      <div className="absolute inset-x-0 top-[16%] md:top-[14%] z-20 select-none pointer-events-none">
         <HeroTitle />
       </div>
 
@@ -167,8 +195,9 @@ export default function HeroStage({
         playsInline
         preload="auto"
         aria-hidden="true"
+        style={{ objectPosition: `${FOCO_PRINCIPAL * 100}% center` }}
         className={`absolute inset-0 w-full h-full object-cover pointer-events-none z-10 ${
-          webglActive ? "opacity-0" : "opacity-95 mix-blend-screen"
+          webglActive ? "opacity-0" : "opacity-95"
         }`}
         {...videoHandlers}
       >
@@ -184,18 +213,30 @@ export default function HeroStage({
           glowColor={ambientGlowColor}
           glowIntensity={glowIntensity}
           glowSize={glowSize}
+          focusX={FOCO_PRINCIPAL}
+          tilt={giroscopio.activo ? tilt : undefined}
           onActiveChange={setWebglActive}
           className="absolute inset-0 z-10 pointer-events-none"
         />
       </Suspense>
 
+      {/* z-15 · velo inferior: el texto del pie cae sobre la figura en pantallas
+          estrechas, y sobre blanco la tinta negra necesita papel debajo. */}
+      <div aria-hidden="true" className="absolute inset-0 z-[15] pointer-events-none stage-fade-bottom" />
+
       {/* z-20 · contenido inferior */}
       <div className="relative z-20 mt-auto w-full">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 lg:pr-20 grid grid-cols-1 lg:grid-cols-12 gap-8 pb-8 md:pb-10 items-end">
+        {/* Todo el texto se apila en el margen derecho, lejos de la figura. */}
+        <div className="max-w-7xl mx-auto px-6 md:px-12 lg:pr-20 pb-8 md:pb-10 flex flex-col gap-6 lg:items-end">
           <LeftInfoBlock />
           <RightInfoBlock />
         </div>
       </div>
+
+      <GyroToggle
+        estado={giroscopio.estado}
+        onToggle={() => (giroscopio.activo ? giroscopio.desactivar() : void giroscopio.activar())}
+      />
 
       {/* z-30 · fundido de salida hacia el primer capítulo */}
       <motion.div

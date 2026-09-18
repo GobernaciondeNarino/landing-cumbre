@@ -18,8 +18,8 @@ export default function ScrollProgressRail({ activeSection, onNavigate }: Scroll
           aria-label={`Ir al capítulo ${chapter.index}: ${chapter.title}`}
           aria-current={i === activeSection ? "step" : undefined}
           onClick={() => onNavigate(i)}
-          className={`w-1.5 rounded-full transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky ${
-            i === activeSection ? "h-8 bg-ember" : "h-1.5 bg-white/20 hover:bg-sky"
+          className={`w-1.5 rounded-full transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink ${
+            i === activeSection ? "h-8 bg-ember" : "h-1.5 bg-ink/20 hover:bg-sky"
           }`}
         />
       ))}

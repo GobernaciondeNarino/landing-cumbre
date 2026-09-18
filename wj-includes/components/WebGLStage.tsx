@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion, type MotionValue } from "motion/react";
 import { CumbreScene, type SceneVariant } from "../webgl/CumbreScene";
-import { isWebGLAvailable } from "../webgl/support";
+import { detectTheme, isWebGLAvailable } from "../webgl/support";
 
 interface WebGLStageProps {
   /** El <video> scrubbeado que alimenta la textura. */
@@ -14,6 +14,13 @@ interface WebGLStageProps {
   glowColor: string;
   glowIntensity: number;
   glowSize: number;
+  /** Punto de interés horizontal del encuadre, en [0, 1]. Ver `setFocus`. */
+  focusX?: number;
+  /**
+   * Inclinación del dispositivo en [-1, 1]. Cuando llega, manda sobre el ratón:
+   * en móvil es el giroscopio quien mueve la escena.
+   */
+  tilt?: MotionValue<number>;
   className?: string;
   /**
    * Avisa al escenario de si WebGL se hizo cargo del vídeo. Mientras sea
@@ -39,6 +46,8 @@ export default function WebGLStage({
   glowColor,
   glowIntensity,
   glowSize,
+  focusX = 0.5,
+  tilt,
   className,
   onActiveChange,
 }: WebGLStageProps) {
@@ -64,6 +73,8 @@ export default function WebGLStage({
       scene = new CumbreScene({
         canvas,
         variant,
+        // El tema sale de los tokens de index.css, no de una copia aquí.
+        theme: detectTheme(),
         // Si el navegador tira el contexto (cambio de GPU, memoria), el
         // escenario recupera el <video> del DOM sin que se note un hueco.
         onContextLost: () => setActive(false),
@@ -137,6 +148,21 @@ export default function WebGLStage({
     // del shader, que es la que sustituye a los blur blobs de CSS.
     scene.setAura(0.16 * glowIntensity, glowSize / 110);
   }, [active, glowColor, glowIntensity, glowSize]);
+
+  useEffect(() => {
+    if (!active) return;
+    sceneRef.current?.setFocus(focusX);
+  }, [active, focusX]);
+
+  useEffect(() => {
+    if (!active || !tilt) return;
+    const scene = sceneRef.current;
+    if (!scene) return;
+    // La inclinación sólo mueve el eje horizontal: el vertical lo lleva el
+    // scroll y mezclarlos marea más de lo que aporta.
+    scene.setPointer(tilt.get(), 0);
+    return tilt.on("change", (value) => scene.setPointer(value, 0));
+  }, [active, tilt]);
 
   useEffect(() => {
     if (!active) return;

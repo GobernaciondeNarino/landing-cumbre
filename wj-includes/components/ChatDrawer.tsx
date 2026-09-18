@@ -65,17 +65,17 @@ export default function ChatDrawer({ onClose }: ChatDrawerProps) {
       transition={{ type: "spring", damping: 30, stiffness: 260 }}
       role="dialog"
       aria-label="Asistente de la Cumbre"
-      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-abyss border-l border-white/10 flex flex-col"
+      className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-abyss border-l border-ink/10 shadow-[-24px_0_60px_-30px_rgba(11,13,18,0.45)] flex flex-col"
     >
-      <header className="flex items-center justify-between px-6 h-16 border-b border-white/10">
+      <header className="flex items-center justify-between px-6 h-16 border-b border-ink/10">
         <p className="font-display font-black tracking-tighter">
-          Asistente <span className="text-ember">·</span> Cumbre IA
+          Asistente <span className="text-ember-ink">·</span> Cumbre IA
         </p>
         <button
           type="button"
           onClick={onClose}
           aria-label="Cerrar asistente"
-          className="p-2 text-white/60 hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+          className="p-2 text-ink/60 hover:text-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink"
         >
           <X className="size-5" />
         </button>
@@ -87,8 +87,8 @@ export default function ChatDrawer({ onClose }: ChatDrawerProps) {
             key={message.id}
             className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
               message.role === "user"
-                ? "ml-auto bg-sky/15 text-white"
-                : "bg-white/5 text-white/70"
+                ? "ml-auto bg-sky/15 text-ink"
+                : "bg-ink/5 text-ink/70"
             }`}
           >
             {message.text}
@@ -96,7 +96,7 @@ export default function ChatDrawer({ onClose }: ChatDrawerProps) {
         ))}
       </div>
 
-      <div className="border-t border-white/10 p-4 flex items-center gap-2">
+      <div className="border-t border-ink/10 p-4 flex items-center gap-2">
         <input
           type="text"
           value={draft}
@@ -106,14 +106,14 @@ export default function ChatDrawer({ onClose }: ChatDrawerProps) {
           }}
           placeholder="Escribe tu pregunta…"
           aria-label="Mensaje para el asistente"
-          className="flex-1 rounded-full bg-abyss-deep border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-2 focus:outline-offset-2 focus:outline-sky"
+          className="flex-1 rounded-full bg-abyss-deep border border-ink/10 px-4 py-2.5 text-sm text-ink placeholder:text-ink/30 focus:outline-2 focus:outline-offset-2 focus:outline-sky-ink"
         />
         <button
           type="button"
           onClick={() => void handleSend()}
           disabled={sending || draft.trim() === ""}
           aria-label="Enviar mensaje"
-          className="size-10 rounded-full bg-ember text-abyss flex items-center justify-center transition-colors hover:bg-crimson hover:text-white disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+          className="size-10 rounded-full bg-ember text-on-accent flex items-center justify-center transition-colors hover:bg-crimson hover:text-on-dark disabled:opacity-40 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink"
         >
           <Send className="size-4" />
         </button>

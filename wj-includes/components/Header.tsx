@@ -34,7 +34,7 @@ export default function Header({
     <>
       <header
         className={`fixed top-0 inset-x-0 z-50 transition-colors duration-300 ${
-          scrolled ? "bg-abyss/70 backdrop-blur-xl border-b border-white/10" : "bg-transparent"
+          scrolled ? "bg-abyss/70 backdrop-blur-xl border-b border-ink/10" : "bg-transparent"
         }`}
       >
         <div className="max-w-7xl mx-auto px-6 md:px-12 h-16 flex items-center justify-between">
@@ -44,12 +44,12 @@ export default function Header({
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            className="font-display font-black tracking-tighter text-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky"
+            className="font-display font-black tracking-tighter text-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-ink"
           >
             {CABECERA.marca}
-            <span className="text-ember">·</span>
+            <span className="text-ember-ink">·</span>
             {CABECERA.marcaSufijo}
-            <span className="ml-2 font-mono text-[10px] font-normal tracking-[0.25em] text-white/40 uppercase">
+            <span className="ml-2 font-mono text-[10px] font-normal tracking-[0.25em] text-ink/40 uppercase">
               {CABECERA.marcaNota}
             </span>
           </a>
@@ -62,7 +62,7 @@ export default function Header({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25 }}
-                className="font-mono text-xs text-sky"
+                className="font-mono text-xs text-sky-ink"
               >
                 {activeChapter.index} · {activeChapter.title}
               </motion.p>
@@ -74,7 +74,7 @@ export default function Header({
               type="button"
               onClick={onOpenChat}
               aria-label="Abrir asistente de la Cumbre"
-              className="p-2 text-white/60 hover:text-sky transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+              className="p-2 text-ink/60 hover:text-sky-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink"
             >
               <MessageCircle className="size-5" />
             </button>
@@ -82,7 +82,7 @@ export default function Header({
               type="button"
               onClick={onOpenProject}
               aria-label="Configura tu participación"
-              className="p-2 text-white/60 hover:text-sky transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+              className="p-2 text-ink/60 hover:text-sky-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink"
             >
               <Sparkles className="size-5" />
             </button>
@@ -91,7 +91,7 @@ export default function Header({
               onClick={() => onMenuToggle(!isMenuOpen)}
               aria-label={isMenuOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={isMenuOpen}
-              className="p-2 text-white hover:text-sky transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+              className="p-2 text-ink hover:text-sky-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-ink"
             >
               {isMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
@@ -119,10 +119,10 @@ export default function Header({
                         onMenuToggle(false);
                         onNavigate(i);
                       }}
-                      className="group flex items-baseline gap-4 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky"
+                      className="group flex items-baseline gap-4 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-ink"
                     >
-                      <span className="font-mono text-xs text-ember">{chapter.index}</span>
-                      <span className="font-display text-4xl md:text-6xl font-black tracking-tighter group-hover:text-sky transition-colors">
+                      <span className="font-mono text-xs text-ember-ink">{chapter.index}</span>
+                      <span className="font-display text-4xl md:text-6xl font-black tracking-tighter group-hover:text-sky-ink transition-colors">
                         {chapter.title}
                       </span>
                     </button>
@@ -132,10 +132,10 @@ export default function Header({
                   <a
                     href="#inscripcion"
                     onClick={() => onMenuToggle(false)}
-                    className="group flex items-baseline gap-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky"
+                    className="group flex items-baseline gap-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-ink"
                   >
-                    <span className="font-mono text-xs text-ember">06</span>
-                    <span className="font-display text-4xl md:text-6xl font-black tracking-tighter text-ember group-hover:text-sky transition-colors">
+                    <span className="font-mono text-xs text-ember-ink">06</span>
+                    <span className="font-display text-4xl md:text-6xl font-black tracking-tighter text-ember-ink group-hover:text-sky-ink transition-colors">
                       {CABECERA.menuInscripcion}
                     </span>
                   </a>
