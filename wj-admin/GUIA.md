@@ -11,6 +11,8 @@ Todo lo editable del sitio vive en la carpeta **`wj-content/`**. No necesitas to
 
 ```
 wj-admin/       Esta guía de administración.
+  VOZ.md            Asistente de voz: dónde se guarda la clave de ElevenLabs.
+api/            Endpoint PHP del asistente de voz (sólo si el agente es privado).
 RESTAURAR.md    Cómo volver a la versión oscura.
 wj-content/     TODO lo editable: textos, capítulos, enlaces y archivos subidos.
   wj-textos.ts      Textos del banner, cabecera, sección de inscripción y pie.
@@ -39,7 +41,9 @@ wj-vite.config.ts  Configuración del compilador.
 | Texto del botón "Quiero inscribirme"            | `wj-content/wj-capitulos.ts`| `CHAPTERS[4].ctaTexto` |
 | Cifra y nota de asistentes (capítulo Comunidad) | `wj-content/wj-capitulos.ts`| `avataresCifra`, `avataresNota`, `AVATARS` |
 | Sección de inscripción (título, datos, botón)   | `wj-content/wj-textos.ts`   | `INSCRIPCION` |
-| **Enlace del formulario de inscripción**        | `wj-content/wj-enlaces.ts`  | `FORM_URL` (vacío = botón deshabilitado) |
+| **Enlace del botón de inscripción**             | `wj-content/wj-enlaces.ts`  | `FORM_URL` — ahora `https://tic.narino.gov.co/eventos/` (vacío = botón deshabilitado) |
+| Agente del asistente de voz                     | `wj-content/wj-voz.ts`      | `AGENTE_VOZ_ID` — **la clave de API NO va aquí**, ver `VOZ.md` |
+| Textos del asistente (saludo, avisos)           | `wj-content/wj-voz.ts`      | `VOZ` |
 | Vídeos (cambiar el archivo)                     | `wj-content/uploads/videos/`| Reemplaza el `.mp4` conservando el nombre |
 | Vídeos (usar un CDN externo)                    | `wj-content/wj-enlaces.ts`  | `VIDEO_PRINCIPAL_URL` / `VIDEO_SECUENCIA_URL` |
 | Correo y web del pie de página                  | `wj-content/wj-enlaces.ts`  | `CONTACTO` |
@@ -119,6 +123,21 @@ incluido el modo claro u oscuro, que deduce del color de fondo del CSS.
 
 Los mandos del **Ambient Glow Studio** (el botón inferior derecho del sitio) gobiernan
 el halo de la escena: color de la paleta institucional, tamaño e intensidad.
+
+## El asistente de voz
+
+El botón del micrófono, abajo a la izquierda, abre el asistente y pide
+conversación hablada. Ocupa el sitio del antiguo interruptor de sonido: abrir el
+asistente es ahora el gesto con el que el visitante acepta el audio de la
+página, así que enciende también los sonidos de la interfaz.
+
+Dentro del panel, el micrófono llama y el botón rojo cuelga. Lo hablado y lo
+escrito van al mismo hilo, así que se puede empezar hablando y terminar
+escribiendo. Cerrar el panel cuelga la llamada.
+
+**Para ponerlo en marcha hace falta configurar el agente de ElevenLabs, y hay
+una forma correcta y una peligrosa de guardar la clave.** Está todo en
+**[`VOZ.md`](VOZ.md)** — léelo antes de tocar nada de esto.
 
 ## Mover el vídeo con el teléfono
 

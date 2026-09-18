@@ -3,11 +3,11 @@
 // ============================================================================
 
 /**
- * Formulario externo de inscripción (Google Forms u otro).
- * Mientras esté vacío, el botón de inscripción aparece deshabilitado;
- * al pegar aquí la URL queda activo y abre en pestaña nueva.
+ * Página de inscripción y eventos de la Secretaría TIC.
+ * Mientras esté vacía, el botón de inscripción aparece deshabilitado;
+ * con una URL queda activo y abre en pestaña nueva.
  */
-export const FORM_URL = "";
+export const FORM_URL = "https://tic.narino.gov.co/eventos/";
 
 /**
  * Vídeos de la página. Los archivos físicos viven en

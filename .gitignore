@@ -7,8 +7,11 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Variables de entorno locales.
+# Variables de entorno y secretos locales. La clave de ElevenLabs no vive aquí
+# sino en el servidor, fuera del document root — ver wj-admin/VOZ.md.
 .env
 .env.local
+*.ini
+elevenlabs.ini
 
 # OJO: dist/ SÍ se versiona a propósito — es lo que Plesk sirve.

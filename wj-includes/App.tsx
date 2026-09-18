@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import Header from "./components/Header";
 import HeroStage from "./components/HeroStage";
@@ -6,12 +6,15 @@ import SequenceStage from "./components/SequenceStage";
 import InscriptionSection from "./components/InscriptionSection";
 import Footer from "./components/Footer";
 import AmbientGlowStudio from "./components/AmbientGlowStudio";
-import SoundToggle from "./components/SoundToggle";
+import MicToggle from "./components/MicToggle";
 import ScrollProgressRail from "./components/ScrollProgressRail";
 import ProjectModal from "./components/ProjectModal";
-import ChatDrawer from "./components/ChatDrawer";
 import { useAudioClick } from "./hooks/useAudioClick";
 import { CHAPTERS } from "../wj-content/wj-capitulos";
+
+// El asistente arrastra el SDK de voz de ElevenLabs y, con él, livekit-client.
+// Se carga la primera vez que alguien lo abre, no en cada visita.
+const ChatDrawer = lazy(() => import("./components/ChatDrawer"));
 
 export default function App() {
   return <Page />;
@@ -24,20 +27,33 @@ function Page() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isSoundOn, setIsSoundOn] = useState(false);
+  const [vozPedida, setVozPedida] = useState(false);
+  const [vozActiva, setVozActiva] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
 
   const sequenceRef = useRef<HTMLElement | null>(null);
   const { setEnabled, playClick } = useAudioClick();
 
-  const handleSoundToggle = useCallback(
-    (on: boolean) => {
-      setIsSoundOn(on);
-      setEnabled(on);
-      if (on) playClick(660);
+  /**
+   * Abrir el asistente es el gesto con el que el visitante pide audio, así que
+   * es también el momento de encender los sonidos de la interfaz: el
+   * AudioContext necesita un gesto y no tiene sentido pedir dos.
+   */
+  const abrirAsistente = useCallback(
+    (conVoz: boolean) => {
+      setEnabled(true);
+      setVozPedida(conVoz);
+      setIsChatOpen(true);
+      playClick(660);
     },
     [setEnabled, playClick],
   );
+
+  const cerrarAsistente = useCallback(() => {
+    setIsChatOpen(false);
+    setVozPedida(false);
+    setVozActiva(false);
+  }, []);
 
   const handleChapterChange = useCallback(
     (index: number) => {
@@ -64,7 +80,7 @@ function Page() {
         onMenuToggle={setIsMenuOpen}
         onNavigate={scrollToChapter}
         onOpenProject={() => setIsProjectOpen(true)}
-        onOpenChat={() => setIsChatOpen(true)}
+        onOpenChat={() => abrirAsistente(false)}
       />
 
       <HeroStage
@@ -94,13 +110,22 @@ function Page() {
         onSizeChange={setGlowSize}
         onIntensityChange={setGlowIntensity}
       />
-      <SoundToggle isSoundOn={isSoundOn} onToggle={handleSoundToggle} />
+      <MicToggle activa={vozActiva} onOpen={() => abrirAsistente(true)} />
 
       <AnimatePresence>
         {isProjectOpen && <ProjectModal key="project" onClose={() => setIsProjectOpen(false)} />}
       </AnimatePresence>
       <AnimatePresence>
-        {isChatOpen && <ChatDrawer key="chat" onClose={() => setIsChatOpen(false)} />}
+        {isChatOpen && (
+          <Suspense fallback={null}>
+            <ChatDrawer
+              key="chat"
+              onClose={cerrarAsistente}
+              iniciarVoz={vozPedida}
+              onVozChange={setVozActiva}
+            />
+          </Suspense>
+        )}
       </AnimatePresence>
     </div>
   );

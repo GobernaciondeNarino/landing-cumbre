@@ -19,7 +19,8 @@ sigue en el historial y se restaura con un `checkout`: ver **[`RESTAURAR.md`](RE
 ## Estructura
 
 ```
-wj-admin/      Guía de administración (dónde se cambia cada cosa).
+wj-admin/      Guía de administración (dónde se cambia cada cosa) y VOZ.md.
+api/           Endpoint PHP del asistente de voz (sólo para agente privado).
 RESTAURAR.md   Cómo volver a la versión oscura.
 wj-content/    Contenido editable: wj-textos.ts, wj-capitulos.ts, wj-enlaces.ts
                y uploads/ (vídeos, favicon).
@@ -105,6 +106,26 @@ al control de sonido). Es una opción y no un automatismo por tres razones:
 
 ±30° de giro recorren el clip entero. Mientras está encendido, el scroll deja de buscar
 fotograma para que los dos mandos no se peleen por el mismo vídeo.
+
+## Asistente de voz
+
+El micrófono flotante abre el asistente y pide conversación con un agente de
+**ElevenLabs**: se habla, contesta en audio, y lo hablado y lo escrito van al
+mismo hilo. El SDK arrastra `livekit-client`, así que `ChatDrawer` entra por
+`React.lazy`: son 169 kB gzip que sólo descarga quien abre el asistente.
+
+**La clave de la API no está en este repositorio y no debe estarlo.** Esta
+landing se compila a archivos estáticos: cualquier valor que entre en el bundle
+se sirve al público. Hay dos montajes correctos y
+**[`wj-admin/VOZ.md`](wj-admin/VOZ.md)** explica los dos paso a paso:
+
+| | Qué se configura | Dónde vive el secreto |
+| --- | --- | --- |
+| **Agente público** (recomendado) | `AGENTE_VOZ_ID` en `wj-content/wj-voz.ts` | No hay secreto: el ID no autoriza nada |
+| **Agente privado** | `ENDPOINT_TOKEN_VOZ` apuntando a `api/voz-token.php` | En el servidor, fuera del document root |
+
+Mientras las dos estén vacías el micrófono avisa de que la voz no está
+configurada y el chat escrito sigue respondiendo.
 
 ## Accesibilidad del color
 
