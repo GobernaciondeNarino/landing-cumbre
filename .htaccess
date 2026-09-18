@@ -13,6 +13,31 @@
 DirectoryIndex index.html
 
 # ---------------------------------------------------------------------------
+# Asistente de voz — configuración de ElevenLabs
+#
+# Descomenta estas dos líneas y pon los valores para configurar el asistente
+# desde aquí. El endpoint wj-content/api/voz-token.php las lee y el sitio se
+# entera sin recompilar nada.
+#
+#   ⚠ DOS AVISOS, y no son menores:
+#
+#   1. Este archivo SÍ está en el repositorio. Si escribes la clave aquí y
+#      haces commit, la clave acaba publicada en GitHub. Edítalo sólo en el
+#      servidor, nunca en tu copia local.
+#   2. Un despliegue por Git SOBREESCRIBE este archivo, y con él tus valores.
+#      Tendrás que volver a ponerlos después de cada despliegue.
+#
+# Por esas dos razones lo recomendado en Plesk es NO usar esto, sino
+# Websites & Domains → PHP Settings → Additional configuration directives,
+# que no está en el repositorio y sobrevive a los despliegues. La otra opción
+# cómoda es wj-content/api/config.php, que está en el .gitignore.
+#
+# Todo explicado en wj-admin/VOZ.md.
+# ---------------------------------------------------------------------------
+# SetEnv ELEVENLABS_AGENT_ID "agent_xxxxxxxxxxxxxxxxxxxxxxxxx"
+# SetEnv ELEVENLABS_API_KEY  "sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# ---------------------------------------------------------------------------
 # Nada de listados de directorio
 # ---------------------------------------------------------------------------
 Options -Indexes
@@ -34,6 +59,12 @@ Options -Indexes
     Require all denied
   </FilesMatch>
   <FilesMatch "\.(ini|env|log)$">
+    Require all denied
+  </FilesMatch>
+  # La configuración del asistente de voz se ejecuta, no se descarga. PHP la
+  # interpreta antes de que Apache la sirva, pero si alguna vez PHP quedara
+  # desactivado en esa carpeta, el archivo se serviría en claro; esto lo impide.
+  <FilesMatch "^config(\.example)?\.php$">
     Require all denied
   </FilesMatch>
 </IfModule>

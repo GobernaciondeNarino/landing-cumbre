@@ -1,52 +1,66 @@
 import type { SessionConfig } from "@elevenlabs/react";
-import { AGENTE_VOZ_ID, ENDPOINT_TOKEN_VOZ } from "../../wj-content/wj-voz";
+import { AGENTE_VOZ_ID, ENDPOINT_TOKEN_VOZ, VOZ } from "../../wj-content/wj-voz";
+
+interface RespuestaVoz {
+  token?: string;
+  signedUrl?: string;
+  signed_url?: string;
+  agentId?: string;
+  error?: string;
+}
 
 /**
- * Cómo se abre la conversación, según lo que haya configurado.
+ * Cómo se abre la conversación.
  *
- * Dos caminos, y ninguno pasa por poner la clave en el navegador:
+ * La decisión no se toma aquí: se le pregunta al servidor, que es donde vive la
+ * configuración. El endpoint responde de una de tres formas y cada una lleva a
+ * un modo de conexión distinto — ninguno de ellos pone la clave en el
+ * navegador, que es el punto de todo esto:
  *
- *  · **Agente público** — basta el `agentId`. El ID identifica al agente pero
- *    no autoriza nada: es el modo pensado justo para sitios estáticos como
- *    éste, donde no hay servidor propio que guarde un secreto.
+ *  · `token`     → agente privado por WebRTC. El servidor gastó la clave por
+ *                  nosotros y nos dio un permiso que caduca.
+ *  · `signedUrl` → lo mismo, por WebSocket.
+ *  · `agentId`   → agente público. El ID identifica al agente pero no autoriza
+ *                  a gastar nada, así que puede viajar tal cual.
  *
- *  · **Agente privado** — el navegador pide un token a un endpoint nuestro; el
- *    endpoint lo pide a ElevenLabs con la clave, que sólo existe allí, y
- *    devuelve un token efímero. Ver `wj-content/api/voz-token.php`.
+ * `AGENTE_VOZ_ID` es un atajo para desplegar sin PHP: si está relleno, manda y
+ * nos ahorramos el viaje.
  */
 export async function construirSesion(): Promise<SessionConfig | null> {
-  if (ENDPOINT_TOKEN_VOZ) {
-    const respuesta = await fetch(ENDPOINT_TOKEN_VOZ, {
-      headers: { Accept: "application/json" },
-    });
-    if (!respuesta.ok) {
-      throw new Error(`El endpoint de voz respondió ${respuesta.status}`);
-    }
-    const datos = (await respuesta.json()) as {
-      token?: string;
-      signedUrl?: string;
-      signed_url?: string;
-    };
-    if (datos.token) {
-      return { conversationToken: datos.token, connectionType: "webrtc" };
-    }
-    const firmada = datos.signedUrl ?? datos.signed_url;
-    if (firmada) {
-      return { signedUrl: firmada, connectionType: "websocket" };
-    }
-    throw new Error("El endpoint de voz no devolvió ni token ni URL firmada");
-  }
-
   if (AGENTE_VOZ_ID) {
     return { agentId: AGENTE_VOZ_ID, connectionType: "webrtc" };
   }
+  if (!ENDPOINT_TOKEN_VOZ) return null;
 
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(ENDPOINT_TOKEN_VOZ, { headers: { Accept: "application/json" } });
+  } catch {
+    // Ni siquiera se pudo llegar al endpoint: no hay PHP, o no hay red.
+    throw new Error(VOZ.sinConfigurar);
+  }
+
+  // Un 404 —el endpoint no existe— no trae JSON; un 503 del propio endpoint sí,
+  // y su mensaje es más útil que cualquier cosa que pudiéramos inventar aquí.
+  const datos = await respuesta
+    .json()
+    .then((d) => d as RespuestaVoz)
+    .catch(() => null);
+
+  if (!respuesta.ok) {
+    throw new Error(datos?.error || VOZ.sinConfigurar);
+  }
+  if (datos?.token) {
+    return { conversationToken: datos.token, connectionType: "webrtc" };
+  }
+  const firmada = datos?.signedUrl ?? datos?.signed_url;
+  if (firmada) {
+    return { signedUrl: firmada, connectionType: "websocket" };
+  }
+  if (datos?.agentId) {
+    return { agentId: datos.agentId, connectionType: "webrtc" };
+  }
   return null;
-}
-
-/** ¿Hay algo configurado con lo que conectar? */
-export function hayAgenteConfigurado(): boolean {
-  return Boolean(ENDPOINT_TOKEN_VOZ || AGENTE_VOZ_ID);
 }
 
 /**
