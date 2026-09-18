@@ -15,6 +15,7 @@ wj-content/     TODO lo editable: textos, capítulos, enlaces y archivos subidos
     videos/cumbre-principal.mp4    Vídeo del banner (scrub con el ratón).
     videos/cumbre-secuencia.mp4    Vídeo del recorrido por capítulos (scrub con scroll).
 wj-includes/    Código de la aplicación (React): componentes, hooks, estilos.
+  webgl/            Escena three.js (shaders y render). No hace falta tocarla.
 dist/           El sitio COMPILADO — esto es lo que se sirve en Plesk.
 index.html      Punto de entrada (Vite y Apache exigen este nombre exacto).
 wj-vite.config.ts  Configuración del compilador.
@@ -39,6 +40,7 @@ wj-vite.config.ts  Configuración del compilador.
 | Correo y web del pie de página                  | `wj-content/wj-enlaces.ts`  | `CONTACTO` |
 | Columnas del pie de página                      | `wj-content/wj-textos.ts`   | `PIE` |
 | Colores de la paleta                            | `wj-includes/index.css`     | Bloque `@theme` (tokens `--color-…`) |
+| Densidad y color del campo de partículas        | `wj-includes/webgl/CumbreScene.ts` | `FIELD_PALETTE` y el `count` de `createField` |
 | Título/descripción de la pestaña (SEO)          | `index.html`                | `<title>` y `<meta name="description">` |
 
 ## ¿Por qué los vídeos están "duplicados"? (wj-content/uploads y dist/videos)
@@ -65,9 +67,47 @@ compila; el sitio ya está configurado para mantener ambos en sincronía.
 > vídeo directamente en `dist/videos/` — pero replica el cambio en
 > `wj-content/uploads/videos/` cuanto antes para que no se pierda en el próximo build.
 
-## Requisitos del vídeo de secuencia
+## Requisitos de los vídeos
 
-- MP4 H.264, sin audio, con `faststart` (el átomo `moov` al inicio).
-- El vídeo se reparte en partes iguales entre los 5 capítulos: con 20 s, cada
-  capítulo corresponde a un tramo de 4 s. Si cambias la duración, la sincronía
-  se mantiene proporcional automáticamente.
+Los dos vídeos tienen que cumplir lo mismo:
+
+- **MP4 H.264** (`avc1`) en `yuv420p`, **sin pista de audio**.
+- `faststart`: el átomo `moov` al principio del archivo.
+- **GOP corto**: un fotograma clave cada 6–8. Es lo que hace que el scrub responda al
+  instante; con keyframes cada dos segundos cada movimiento del ratón obliga al
+  navegador a reconstruir medio segundo de vídeo.
+- **Nada de H.265/HEVC.** Chrome y Firefox no lo decodifican dentro de un MP4: el
+  escenario se quedaría en negro para la mayoría de visitantes.
+
+Comando de conversión (sirve para cualquier origen, incluidos los clips de Higgsfield,
+que salen en HEVC 10 bits):
+
+```bash
+ffmpeg -i origen.mp4 -an -c:v libx264 -preset slow -crf 24 \
+  -profile:v high -pix_fmt yuv420p -g 8 -keyint_min 8 -sc_threshold 0 \
+  -x264-params "bframes=0" -movflags +faststart cumbre-secuencia.mp4
+```
+
+Sobre la duración: el vídeo de secuencia se reparte en partes iguales entre los 5
+capítulos — con 20 s, cada capítulo ocupa un tramo de 4 s. Si cambias la duración la
+sincronía se mantiene proporcional sola; sólo conviene actualizar la constante
+`DURACION_SECUENCIA` de `wj-includes/components/SequenceStage.tsx` (y la equivalente
+`DURACION_PRINCIPAL` del banner), que es el valor de reserva mientras el navegador
+todavía no ha leído los metadatos.
+
+## El personaje y la escena WebGL
+
+El banner y el recorrido entregan su `<video>` a una escena **three.js** que:
+
+- recorta la figura por luminancia — por eso los clips deben estar rodados sobre fondo
+  casi negro (`#000A22`), como los actuales;
+- la compone sobre un campo de partículas con los colores de la Gobernación;
+- responde al cursor (lente, aberración cromática) y al scroll.
+
+El `<video>` sigue en la página, invisible: es la fuente de la textura. Si el navegador
+no tiene WebGL, o el sistema del visitante pide *movimiento reducido*, la escena no se
+monta y el `<video>` vuelve a pintarse tal cual. **No hay nada que configurar**: cambiar
+el vídeo en `uploads/videos/` es suficiente, la escena coge el nuevo automáticamente.
+
+Los mandos del **Ambient Glow Studio** (el botón inferior derecho del sitio) gobiernan
+el halo de la escena: color de la paleta institucional, tamaño e intensidad.

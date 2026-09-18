@@ -9,4 +9,16 @@ export default defineConfig({
   // copian tal cual a la raíz de dist/ al compilar.
   publicDir: "wj-content/uploads",
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        // three.js pesa más que el resto de la app junta y sólo hace falta
+        // cuando la escena WebGL arranca: en su propio chunk se descarga en
+        // paralelo y no retrasa el primer pintado de la landing.
+        manualChunks: {
+          three: ["three"],
+        },
+      },
+    },
+  },
 });
