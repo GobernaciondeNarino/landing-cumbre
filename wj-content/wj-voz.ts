@@ -32,7 +32,8 @@ export const AGENTE_VOZ_ID = "";
  * existe en el servidor— y devuelve únicamente el token, que caduca.
  *
  * En el repositorio hay una implementación lista para Plesk en
- * `api/voz-token.php`; con ella, aquí se pone `"/api/voz-token.php"`.
+ * `wj-content/api/voz-token.php`; con ella, aquí se pone
+ * `"/wj-content/api/voz-token.php"`.
  *
  * Si está relleno, manda sobre `AGENTE_VOZ_ID`.
  */

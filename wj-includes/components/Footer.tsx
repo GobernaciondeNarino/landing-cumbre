@@ -1,12 +1,21 @@
 import { PIE } from "../../wj-content/wj-textos";
-import { CONTACTO } from "../../wj-content/wj-enlaces";
+import { CONTACTO, LOGO_RESPALDO_URL, LOGO_URL } from "../../wj-content/wj-enlaces";
 
 export default function Footer() {
   return (
     <footer className="border-t border-ink/10 py-12">
       <div className="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-8 font-mono text-xs text-ink/40">
         <div>
-          <p className="text-ink/70 mb-2">{PIE.columna1Titulo}</p>
+          <picture>
+            <source srcSet={LOGO_URL} type="image/webp" />
+            <img
+              src={LOGO_RESPALDO_URL}
+              width={1792}
+              height={522}
+              alt={PIE.columna1Titulo}
+              className="h-12 w-auto mb-4"
+            />
+          </picture>
           {PIE.columna1Lineas.map((linea) => (
             <p key={linea}>{linea}</p>
           ))}

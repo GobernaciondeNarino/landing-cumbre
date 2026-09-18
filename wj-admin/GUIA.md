@@ -10,24 +10,38 @@ Todo lo editable del sitio vive en la carpeta **`wj-content/`**. No necesitas to
 ## Estructura del proyecto
 
 ```
+index.html      LA PÁGINA que se abre al entrar. La genera el compilador: no se
+                edita a mano (ver «Los dos index.html» más abajo).
+.htaccess       Reglas de Apache/Plesk.
 wj-admin/       Esta guía de administración.
   VOZ.md            Asistente de voz: dónde se guarda la clave de ElevenLabs.
-api/            Endpoint PHP del asistente de voz (sólo si el agente es privado).
 RESTAURAR.md    Cómo volver a la versión oscura.
-wj-content/     TODO lo editable: textos, capítulos, enlaces y archivos subidos.
+wj-content/     TODO lo editable y todo lo que se sirve.
   wj-textos.ts      Textos del banner, cabecera, sección de inscripción y pie.
   wj-capitulos.ts   Los 5 capítulos del recorrido con scroll (títulos, párrafos, CTA).
   wj-enlaces.ts     URL del formulario, rutas de los vídeos y datos de contacto.
-  uploads/          Archivos estáticos: vídeos y favicon.
+  wj-voz.ts         Agente del asistente de voz y sus textos.
+  uploads/          Archivos estáticos: vídeos, logo y favicon.
     videos/cumbre-principal.mp4    Vídeo del banner (scrub con el ratón).
     videos/cumbre-secuencia.mp4    Vídeo del recorrido por capítulos (scrub con scroll).
+    logohz.png                     Logotipo horizontal (maestro).
+  dist/             El sitio COMPILADO — esto es lo que se sirve en Plesk.
+  api/              Endpoint PHP del asistente de voz (sólo si el agente es privado).
 wj-includes/    Código de la aplicación (React): componentes, hooks, estilos.
+  index.html        Plantilla del compilador. NO es la página.
   webgl/            Escena three.js (shaders y render). No hace falta tocarla.
-dist/           El sitio COMPILADO — esto es lo que se sirve en Plesk.
-index.html      Punto de entrada (Vite y Apache exigen este nombre exacto).
-wj-vite.config.ts  Configuración del compilador.
-.htaccess       Reescribe las peticiones hacia dist/ en Apache/Plesk.
+wj-vite.config.ts   Configuración del compilador.
+wj-build-index.mjs  Escribe el index.html de la raíz al terminar de compilar.
 ```
+
+## Los dos index.html
+
+Es la confusión más fácil de este proyecto:
+
+| Archivo | Qué es | ¿Se edita? |
+| --- | --- | --- |
+| `index.html` (raíz) | **La página de producción.** Es la que se abre al entrar al sitio y carga todo desde `wj-content/dist/`. | **No.** Se regenera en cada `npm run build`. |
+| `wj-includes/index.html` | La plantilla del compilador. | Sí, para cambiar el título de la pestaña, la descripción o el favicon. |
 
 ## Dónde se cambia cada cosa
 
@@ -52,18 +66,31 @@ wj-vite.config.ts  Configuración del compilador.
 | Fondo y color del texto (claro/oscuro)          | `wj-includes/index.css`     | `--color-abyss` y `--color-ink`; ver `RESTAURAR.md` |
 | Encuadre del personaje en móvil                 | `wj-includes/components/HeroStage.tsx` | `FOCO_PRINCIPAL` (0 = izquierda, 1 = derecha) |
 | Densidad y color del campo de partículas        | `wj-includes/webgl/CumbreScene.ts` | `FIELD_PALETTE` y el `count` de `createField` |
-| Título/descripción de la pestaña (SEO)          | `index.html`                | `<title>` y `<meta name="description">` |
+| Título/descripción de la pestaña (SEO)          | `wj-includes/index.html`    | `<title>` y `<meta name="description">` — luego `npm run build` |
+| Logotipo                                        | `wj-content/uploads/`       | `logohz.png` y `logohz.webp` (ver abajo) |
 
-## ¿Por qué los vídeos están "duplicados"? (wj-content/uploads y dist/videos)
+## ¿Por qué los archivos están "duplicados"? (uploads y dist)
 
-- `wj-content/uploads/videos/` es la **fuente**: lo que tú editas.
-- `dist/videos/` es la **copia compilada**: lo que Plesk sirve al público.
+- `wj-content/uploads/` es la **fuente**: lo que tú editas.
+- `wj-content/dist/` es la **copia compilada**: lo que Plesk sirve al público.
 
-Al ejecutar `npm run build`, Vite borra `dist/` y lo regenera copiando los archivos
-de `uploads/` dentro. **Importante:** si reemplazas un vídeo directamente en
-`dist/` (como se hizo por GitHub web), el siguiente build lo sobreescribirá con el
-de `uploads/`. Cambia siempre el vídeo en `wj-content/uploads/videos/` y luego
-compila; el sitio ya está configurado para mantener ambos en sincronía.
+Al ejecutar `npm run build`, Vite borra `wj-content/dist/` y lo regenera copiando
+los archivos de `uploads/` dentro. **Importante:** si reemplazas un vídeo o el logo
+directamente en `dist/`, el siguiente build lo sobreescribirá con el de `uploads/`.
+Cambia siempre el archivo en `wj-content/uploads/` y luego compila.
+
+## El logotipo
+
+El maestro es `wj-content/uploads/logohz.png`, tal y como se subió (1792×522).
+La web carga `logohz.webp`, la misma imagen a 720 px: pesa 39 kB en lugar de 310 kB,
+y el PNG queda de respaldo para navegadores antiguos.
+
+Si cambias el logo, deja los dos archivos con esos nombres. Para regenerar el WebP a
+partir de un PNG nuevo:
+
+```bash
+ffmpeg -i logohz.png -vf "scale=720:-1:flags=lanczos" -c:v libwebp -quality 88 logohz.webp
+```
 
 ## Publicar un cambio
 

@@ -28,7 +28,7 @@ git push origin claude/affectionate-maxwell-dc81hi
 Después, en Plesk: **Git → Pull/Deploy**, y purga la caché de Cloudflare.
 
 > **Si ya tienes una copia de la versión oscura en el servidor**, restaurarla es
-> simplemente volver a subir esa carpeta: `dist/` es autocontenido y no
+> simplemente volver a subir esa carpeta: el build es autocontenido y no
 > necesita Node.js en producción.
 
 ## Marcar la versión con una etiqueta
