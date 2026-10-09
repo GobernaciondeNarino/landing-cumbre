@@ -1,0 +1,472 @@
+<!-- ===========================================================================
+     Cumbre IA Nariño · Ñaño interactivo
+     Bloque autónomo para el widget HTML de Elementor.
+
+     Mueve el ratón sobre la sección y el personaje gira con él. No necesita
+     librerías: el efecto va en WebGL escrito a mano, así que no carga nada de
+     fuera. Si el navegador no tiene WebGL, o el visitante pide movimiento
+     reducido, el <video> se pinta tal cual y el personaje sigue respondiendo.
+
+     Ajustes, en los atributos del primer <div>:
+       data-video    URL del MP4.
+       data-foco     Dónde está el personaje en el fotograma (0 izq · 1 der).
+       data-anclaje  Dónde se le quiere colocar en la sección (0 izq · 1 der).
+       data-zoom     1 = el vídeo llena el alto. Más, más grande.
+       data-fondo    Color del plató. Tiene que ser claro: el clip está rodado
+                     sobre blanco y el efecto lo funde con este color.
+
+     El alto se cambia en el CSS, en --wj-alto.
+=========================================================================== -->
+
+<div class="wj-nano"
+     data-video="https://tic.narino.gov.co/wp-content/uploads/2026/10/Nano-03.mp4"
+     data-foco="0.18"
+     data-anclaje="0.5"
+     data-zoom="1"
+     data-fondo="#ffffff"
+     aria-hidden="true">
+  <canvas class="wj-nano__lienzo"></canvas>
+  <video class="wj-nano__video" muted playsinline preload="auto" disablepictureinpicture></video>
+</div>
+
+<style>
+.wj-nano {
+  /* Alto de la sección. Admite px, vh, lo que sea. */
+  --wj-alto: 560px;
+  --wj-fondo: #ffffff;
+
+  position: relative;
+  width: 100%;
+  height: var(--wj-alto);
+  overflow: hidden;
+  background: var(--wj-fondo);
+  /* El puntero es el mando: el cursor lo dice. */
+  cursor: ew-resize;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.wj-nano__lienzo,
+.wj-nano__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* Con WebGL activo el <video> sigue en la página porque es la fuente de la
+   textura, pero quien pinta es el lienzo. */
+.wj-nano[data-wj-modo="webgl"] .wj-nano__video { opacity: 0; }
+.wj-nano[data-wj-modo="dom"] .wj-nano__lienzo { display: none; }
+.wj-nano[data-wj-modo="dom"] .wj-nano__video { object-fit: cover; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wj-nano { cursor: default; }
+}
+</style>
+
+<script>
+(function () {
+  "use strict";
+
+  var VS_FIGURA =
+    "attribute vec2 aPos;varying vec2 vUv;" +
+    "void main(){vUv=aPos*0.5+0.5;gl_Position=vec4(aPos,0.0,1.0);}";
+
+  var FS_FIGURA = [
+    "precision highp float;",
+    "uniform sampler2D uMap;",
+    "uniform vec2  uRes;      // tamaño de la sección, en píxeles",
+    "uniform vec2  uMedia;    // tamaño del vídeo",
+    "uniform vec2  uPointer;  // puntero en [-1,1]",
+    "uniform float uTime;",
+    "uniform float uEnergy;   // 0..1, cuánto se está moviendo la cosa",
+    "uniform float uFocus;    // dónde está el personaje en el fotograma",
+    "uniform float uAnchor;   // dónde se le coloca en la sección",
+    "uniform float uZoom;",
+    "uniform float uHasFrame;",
+    "uniform vec3  uPlate;    // color del plató / fondo de la sección",
+    "uniform vec3  uWarm;",
+    "uniform vec3  uCool;",
+    "varying vec2 vUv;",
+
+    "float luma(vec3 c){return dot(c,vec3(0.2126,0.7152,0.0722));}",
+    "float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}",
+
+    "void main(){",
+    "  float aspecto = uRes.x / max(uRes.y, 1.0);",
+
+    /* El vídeo se escala para llenar el alto y se desplaza para que el punto
+       de interés caiga donde se le pide. Lo que queda fuera se rellena con el
+       plató: como el clip está rodado sobre un blanco plano, no hay costura. */
+    "  float alto  = uRes.y * uZoom;",
+    "  float ancho = alto * (uMedia.x / max(uMedia.y, 1.0));",
+    "  vec2 pix = vUv * uRes;",
+    "  vec2 origen = vec2(uAnchor * uRes.x - uFocus * ancho, uRes.y * 0.5 - alto * 0.5);",
+    "  vec2 uv = (pix - origen) / vec2(ancho, alto);",
+
+    /* Lente del cursor: el plano se comba alrededor del puntero. */
+    "  vec2 punteroUv = uPointer * 0.5 + 0.5;",
+    "  vec2 hacia = vUv - punteroUv;",
+    "  vec2 corregido = vec2(hacia.x * aspecto, hacia.y);",
+    "  float lente = exp(-dot(corregido, corregido) * 5.0);",
+    "  uv -= hacia * lente * (0.020 + uEnergy * 0.035);",
+
+    "  float dentro = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);",
+
+    /* Aberración cromática: crece con la energía y hacia los bordes. */
+    "  float borde = length(vUv - 0.5);",
+    "  float sep = (0.0006 + uEnergy * 0.0032) * (0.35 + borde);",
+    "  vec2 dir = normalize(hacia + vec2(1e-5));",
+    "  vec2 uvc = clamp(uv, 0.0, 1.0);",
+    "  float r = texture2D(uMap, clamp(uvc + dir * sep, 0.0, 1.0)).r;",
+    "  vec3  g = texture2D(uMap, uvc).rgb;",
+    "  float b = texture2D(uMap, clamp(uvc - dir * sep, 0.0, 1.0)).b;",
+    "  vec3 color = mix(uPlate, vec3(r, g.g, b), dentro * uHasFrame);",
+
+    /* El plató del rodaje no es exactamente el fondo de la sección: las luces
+       altas se empujan hasta igualarlo para que el rectángulo no se note. */
+    "  float l = luma(color);",
+    "  color = mix(color, uPlate, smoothstep(0.80, 0.99, l) * 0.9);",
+    /* Etalonaje: una pizca de frío en los medios-bajos, de marca. */
+    "  color = mix(color, uCool * 0.9, (1.0 - smoothstep(0.10, 0.55, l)) * 0.16);",
+
+    /* Barrido y grano, sólo donde hay figura. Sobre el blanco plano del
+       plató se leerían como un defecto de impresión, no como textura. */
+    "  float distPlato = distance(color, uPlate);",
+    "  float figura = smoothstep(0.02, 0.12, distPlato);",
+    "  float scan = 0.975 + 0.025 * sin(vUv.y * uRes.y * 1.5 + uTime * 2.0);",
+    "  float grano = (hash(vUv * uRes * 0.5 + uTime) - 0.5) * (0.018 + uEnergy * 0.030);",
+    "  color = mix(color, color * scan + grano, figura);",
+
+    /* Aura de marca siguiendo al puntero. */
+    "  vec2 centroAura = vec2(0.5, 0.52) + uPointer * vec2(0.09, -0.05);",
+    "  vec2 ac = vec2((vUv.x - centroAura.x) * aspecto, vUv.y - centroAura.y);",
+    "  float aura = exp(-dot(ac, ac) * 4.0);",
+    "  color = mix(color, uWarm, aura * 0.075);",
+
+    "  gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);",
+    "}"
+  ].join("\n");
+
+  var VS_POLVO = [
+    "attribute vec2 aPos;",
+    "attribute float aDepth;",
+    "attribute vec3 aColor;",
+    "attribute float aSeed;",
+    "attribute float aScale;",
+    "uniform float uTime;",
+    "uniform float uEnergy;",
+    "uniform float uDpr;",
+    "uniform vec2  uPointer;",
+    "varying vec3 vColor;",
+    "varying float vAlpha;",
+    "void main(){",
+    "  vColor = aColor;",
+    "  float t = uTime * 0.12 + aSeed * 6.2831853;",
+    "  vec2 p = aPos + vec2(sin(t), cos(t * 0.8)) * 0.025;",
+    /* Paralaje: los puntos de delante acusan más el movimiento del puntero. */
+    "  p += uPointer * (0.008 + aDepth * 0.055) * (0.7 + uEnergy * 0.7);",
+    "  gl_Position = vec4(p, 0.0, 1.0);",
+    "  gl_PointSize = (1.4 + aDepth * 4.6) * aScale * uDpr;",
+    "  vAlpha = 0.10 + aDepth * 0.30;",
+    "}"
+  ].join("\n");
+
+  var FS_POLVO = [
+    "precision mediump float;",
+    "varying vec3 vColor;",
+    "varying float vAlpha;",
+    "void main(){",
+    "  vec2 c = gl_PointCoord - 0.5;",
+    "  float d = dot(c, c);",
+    "  if (d > 0.25) discard;",
+    "  float halo = smoothstep(0.25, 0.0, d);",
+    "  gl_FragColor = vec4(vColor, halo * vAlpha);",
+    "}"
+  ].join("\n");
+
+  /* Paleta institucional en sus variantes de texto: sobre blanco, las de
+     relleno se apagan y no se ven. */
+  var PALETA = [[0.0, 0.49, 0.69], [0.16, 0.20, 0.26], [0.79, 0.31, 0.0], [0.62, 0.43, 0.0]];
+
+  function hexARgb(hex) {
+    var m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex || "").trim());
+    if (!m) return [1, 1, 1];
+    var h = m[1].length === 3 ? m[1].replace(/./g, function (c) { return c + c; }) : m[1];
+    return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
+  }
+
+  function compilar(gl, tipo, fuente) {
+    var s = gl.createShader(tipo);
+    gl.shaderSource(s, fuente);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+
+  function programa(gl, vs, fs) {
+    var p = gl.createProgram();
+    gl.attachShader(p, compilar(gl, gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, compilar(gl, gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    return p;
+  }
+
+  function arrancar(raiz) {
+    if (raiz.getAttribute("data-wj-listo")) return;
+    raiz.setAttribute("data-wj-listo", "1");
+
+    var video = raiz.querySelector(".wj-nano__video");
+    var lienzo = raiz.querySelector(".wj-nano__lienzo");
+    var fuente = raiz.getAttribute("data-video") || "";
+    var foco = parseFloat(raiz.getAttribute("data-foco"));
+    var anclaje = parseFloat(raiz.getAttribute("data-anclaje"));
+    var zoom = parseFloat(raiz.getAttribute("data-zoom"));
+    var fondo = raiz.getAttribute("data-fondo") || "#ffffff";
+    if (isNaN(foco)) foco = 0.18;
+    if (isNaN(anclaje)) anclaje = 0.5;
+    if (isNaN(zoom) || zoom <= 0) zoom = 1;
+
+    raiz.style.setProperty("--wj-fondo", fondo);
+    video.src = fuente;
+    video.load();
+
+    var quieto = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /* ---- scrub: el vídeo nunca recibe más seeks de los que decodifica ---- */
+    var duracion = 0;
+    var pendiente = null;
+    video.addEventListener("loadedmetadata", function () {
+      duracion = isFinite(video.duration) ? video.duration : 0;
+      video.pause();
+      try { video.currentTime = 0; } catch (e) {}
+    });
+    video.addEventListener("seeked", function () {
+      if (pendiente !== null) { var t = pendiente; pendiente = null; try { video.currentTime = t; } catch (e) {} }
+    });
+
+    function buscar(p) {
+      var d = duracion || video.duration;
+      if (!d || !isFinite(d)) return;
+      var t = Math.max(0, Math.min(1, p)) * Math.max(0, d - 0.05);
+      if (video.seeking) pendiente = t; else { try { video.currentTime = t; } catch (e) {} }
+    }
+
+    var objetivo = 0.5, actual = 0.5;
+    var punteroX = 0, punteroY = 0, punteroSuaveX = 0, punteroSuaveY = 0;
+    var energia = 0, ultimoGesto = 0;
+
+    raiz.addEventListener("pointermove", function (e) {
+      var r = raiz.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      var px = (e.clientX - r.left) / r.width;
+      var py = (e.clientY - r.top) / r.height;
+      /* La zona cómoda [0.08, 0.92] del ancho recorre el clip entero. */
+      objetivo = Math.max(0, Math.min(1, (px - 0.08) / 0.84));
+      punteroX = px * 2 - 1;
+      punteroY = -(py * 2 - 1);
+      ultimoGesto = performance.now();
+    }, { passive: true });
+
+    /* ---- WebGL ---- */
+    var gl = null;
+    try {
+      gl = lienzo.getContext("webgl", { alpha: false, antialias: false, powerPreference: "high-performance" })
+        || lienzo.getContext("experimental-webgl", { alpha: false });
+    } catch (e) { gl = null; }
+
+    if (!gl || quieto) {
+      raiz.setAttribute("data-wj-modo", "dom");
+      video.style.objectPosition = (foco * 100) + "% center";
+      if (quieto) { video.addEventListener("loadeddata", function () { buscar(0.5); }, { once: true }); }
+      if (!quieto) bucleDom();
+      return;
+    }
+    raiz.setAttribute("data-wj-modo", "webgl");
+
+    var progFigura, progPolvo;
+    try {
+      progFigura = programa(gl, VS_FIGURA, FS_FIGURA);
+      progPolvo = programa(gl, VS_POLVO, FS_POLVO);
+    } catch (e) {
+      raiz.setAttribute("data-wj-modo", "dom");
+      video.style.objectPosition = (foco * 100) + "% center";
+      bucleDom();
+      return;
+    }
+
+    var quad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+
+    var N = 420;
+    var datos = new Float32Array(N * 8);
+    for (var i = 0; i < N; i++) {
+      var o = i * 8;
+      datos[o] = Math.random() * 2.4 - 1.2;
+      datos[o + 1] = Math.random() * 2.4 - 1.2;
+      datos[o + 2] = Math.random();
+      var c = PALETA[(Math.random() * PALETA.length) | 0];
+      datos[o + 3] = c[0]; datos[o + 4] = c[1]; datos[o + 5] = c[2];
+      datos[o + 6] = Math.random();
+      datos[o + 7] = 0.35 + Math.pow(Math.random(), 3.5) * 1.1;
+    }
+    var bufPolvo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufPolvo);
+    gl.bufferData(gl.ARRAY_BUFFER, datos, gl.STATIC_DRAW);
+
+    var textura = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, textura);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+    var rgbFondo = hexARgb(fondo);
+    var hayFotograma = 0, texturaRota = false;
+    var u = {};
+    ["uMap", "uRes", "uMedia", "uPointer", "uTime", "uEnergy", "uFocus", "uAnchor", "uZoom", "uHasFrame", "uPlate", "uWarm", "uCool"]
+      .forEach(function (n) { u[n] = gl.getUniformLocation(progFigura, n); });
+    var up = {};
+    ["uTime", "uEnergy", "uDpr", "uPointer"].forEach(function (n) { up[n] = gl.getUniformLocation(progPolvo, n); });
+
+    var aPosFig = gl.getAttribLocation(progFigura, "aPos");
+    var aPosPol = gl.getAttribLocation(progPolvo, "aPos");
+    var aDepth = gl.getAttribLocation(progPolvo, "aDepth");
+    var aColor = gl.getAttribLocation(progPolvo, "aColor");
+    var aSeed = gl.getAttribLocation(progPolvo, "aSeed");
+    var aScale = gl.getAttribLocation(progPolvo, "aScale");
+
+    var dpr = 1, ancho = 0, alto = 0;
+    function medir() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var r = raiz.getBoundingClientRect();
+      ancho = Math.max(1, Math.round(r.width));
+      alto = Math.max(1, Math.round(r.height));
+      lienzo.width = Math.round(ancho * dpr);
+      lienzo.height = Math.round(alto * dpr);
+      gl.viewport(0, 0, lienzo.width, lienzo.height);
+    }
+    medir();
+    if (window.ResizeObserver) new ResizeObserver(medir).observe(raiz);
+    else window.addEventListener("resize", medir);
+
+    /* Sólo se dibuja con la sección a la vista: fuera, ni GPU ni batería. */
+    var aLaVista = true;
+    if (window.IntersectionObserver) {
+      new IntersectionObserver(function (es) { aLaVista = es[0] ? es[0].isIntersecting : true; })
+        .observe(raiz);
+    }
+
+    var t0 = performance.now(), anterior = t0;
+    function cuadro(ahora) {
+      requestAnimationFrame(cuadro);
+      if (!aLaVista || document.hidden) { anterior = ahora; return; }
+
+      var dt = Math.min((ahora - anterior) / 1000, 0.05);
+      anterior = ahora;
+
+      /* Sin gestos recientes, el personaje se mueve solo: una sección quieta
+         no cuenta que se puede tocar. */
+      if (ahora - ultimoGesto > 2500) {
+        var fase = (ahora - t0) / 1000 * 0.22;
+        objetivo = 0.5 + Math.sin(fase) * 0.42;
+        punteroX = Math.sin(fase) * 0.5;
+        punteroY = Math.cos(fase * 0.7) * 0.2;
+      }
+
+      var dp = Math.abs(punteroX - punteroSuaveX) + Math.abs(punteroY - punteroSuaveY);
+      energia = Math.max(0, Math.min(1, energia * 0.92 + dp * 1.4 + Math.abs(objetivo - actual) * 2.0));
+      var k = 1 - Math.pow(0.0015, dt);
+      punteroSuaveX += (punteroX - punteroSuaveX) * k;
+      punteroSuaveY += (punteroY - punteroSuaveY) * k;
+
+      var siguiente = actual + (objetivo - actual) * (1 - Math.pow(0.002, dt));
+      if (Math.abs(siguiente - actual) > 0.0004) { actual = siguiente; buscar(actual); }
+
+      if (!texturaRota && video.readyState >= 2 && video.videoWidth) {
+        try {
+          gl.bindTexture(gl.TEXTURE_2D, textura);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+          hayFotograma = 1;
+        } catch (e) {
+          /* Vídeo de otro dominio sin CORS: WebGL no puede leerlo. */
+          texturaRota = true;
+          raiz.setAttribute("data-wj-modo", "dom");
+          video.style.objectPosition = (foco * 100) + "% center";
+        }
+      }
+
+      var t = (ahora - t0) / 1000;
+      gl.clearColor(rgbFondo[0], rgbFondo[1], rgbFondo[2], 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.useProgram(progFigura);
+      gl.disable(gl.BLEND);
+      gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+      gl.enableVertexAttribArray(aPosFig);
+      gl.vertexAttribPointer(aPosFig, 2, gl.FLOAT, false, 0, 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, textura);
+      gl.uniform1i(u.uMap, 0);
+      gl.uniform2f(u.uRes, lienzo.width, lienzo.height);
+      gl.uniform2f(u.uMedia, video.videoWidth || 1280, video.videoHeight || 720);
+      gl.uniform2f(u.uPointer, punteroSuaveX, punteroSuaveY);
+      gl.uniform1f(u.uTime, t);
+      gl.uniform1f(u.uEnergy, energia);
+      gl.uniform1f(u.uFocus, foco);
+      gl.uniform1f(u.uAnchor, anclaje);
+      gl.uniform1f(u.uZoom, zoom);
+      gl.uniform1f(u.uHasFrame, hayFotograma);
+      gl.uniform3f(u.uPlate, rgbFondo[0], rgbFondo[1], rgbFondo[2]);
+      gl.uniform3f(u.uWarm, 1.0, 0.388, 0.0);
+      gl.uniform3f(u.uCool, 0.0, 0.62, 0.86);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      gl.useProgram(progPolvo);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.bindBuffer(gl.ARRAY_BUFFER, bufPolvo);
+      var paso = 8 * 4;
+      gl.enableVertexAttribArray(aPosPol); gl.vertexAttribPointer(aPosPol, 2, gl.FLOAT, false, paso, 0);
+      gl.enableVertexAttribArray(aDepth);  gl.vertexAttribPointer(aDepth, 1, gl.FLOAT, false, paso, 8);
+      gl.enableVertexAttribArray(aColor);  gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, paso, 12);
+      gl.enableVertexAttribArray(aSeed);   gl.vertexAttribPointer(aSeed, 1, gl.FLOAT, false, paso, 24);
+      gl.enableVertexAttribArray(aScale);  gl.vertexAttribPointer(aScale, 1, gl.FLOAT, false, paso, 28);
+      gl.uniform1f(up.uTime, t);
+      gl.uniform1f(up.uEnergy, energia);
+      gl.uniform1f(up.uDpr, dpr);
+      gl.uniform2f(up.uPointer, punteroSuaveX, punteroSuaveY);
+      gl.drawArrays(gl.POINTS, 0, N);
+    }
+    requestAnimationFrame(cuadro);
+
+    /* Respaldo sin WebGL: el mismo scrub, pintando el <video> del DOM. */
+    function bucleDom() {
+      var previo = performance.now();
+      (function paso(ahora) {
+        requestAnimationFrame(paso);
+        var dt = Math.min((ahora - previo) / 1000, 0.05);
+        previo = ahora;
+        if (ahora - ultimoGesto > 2500) objetivo = 0.5 + Math.sin((ahora / 1000) * 0.22) * 0.42;
+        var sig = actual + (objetivo - actual) * (1 - Math.pow(0.002, dt));
+        if (Math.abs(sig - actual) > 0.0008) { actual = sig; buscar(actual); }
+      })(previo);
+    }
+  }
+
+  function iniciar() {
+    var nodos = document.querySelectorAll(".wj-nano");
+    for (var i = 0; i < nodos.length; i++) arrancar(nodos[i]);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar);
+  else iniciar();
+})();
+</script>
